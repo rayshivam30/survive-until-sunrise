@@ -5,11 +5,15 @@
 
 import { GameState } from './GameState.js';
 import { GameTimer } from './GameTimer.js';
+import { FearSystem } from './FearSystem.js';
+import { HealthSystem } from './HealthSystem.js';
 
 export class GameEngine {
   constructor() {
     this.gameState = new GameState();
     this.gameTimer = new GameTimer(this.gameState);
+    this.fearSystem = new FearSystem(this.gameState);
+    this.healthSystem = new HealthSystem(this.gameState);
     this.isRunning = false;
     this.lastUpdateTime = 0;
     this.updateCallbacks = new Set();
@@ -17,6 +21,9 @@ export class GameEngine {
     
     // Set up timer event handlers
     this.setupTimerEvents();
+    
+    // Set up system integrations
+    this.setupSystemIntegrations();
     
     // Bind methods to preserve context
     this.update = this.update.bind(this);
@@ -79,6 +86,10 @@ export class GameEngine {
     
     // Update game state timing
     this.gameState.update(deltaTime);
+
+    // Update fear and health systems
+    this.fearSystem.update(deltaTime);
+    this.healthSystem.update(deltaTime);
 
     // Notify all registered update callbacks
     this.updateCallbacks.forEach(callback => {
@@ -161,6 +172,20 @@ export class GameEngine {
   }
 
   /**
+   * Get fear system instance
+   */
+  getFearSystem() {
+    return this.fearSystem;
+  }
+
+  /**
+   * Get health system instance
+   */
+  getHealthSystem() {
+    return this.healthSystem;
+  }
+
+  /**
    * Check if game is currently running
    */
   isGameRunning() {
@@ -177,13 +202,36 @@ export class GameEngine {
     // Add event to game state history
     this.gameState.addEvent(eventData.id || 'unknown');
     
-    // Process event effects
-    if (eventData.fearDelta) {
-      this.gameState.updateFear(eventData.fearDelta);
+    // Process event effects using the new systems
+    if (eventData.fearEvent) {
+      this.fearSystem.triggerFearEvent(eventData.fearEvent.type, {
+        intensity: eventData.fearEvent.intensity || 1.0,
+        source: eventData.id || 'unknown'
+      });
+    } else if (eventData.fearDelta) {
+      // Legacy support - convert to fear event
+      const fearType = eventData.fearDelta > 15 ? 'jump_scare' : 'ambient';
+      this.fearSystem.triggerFearEvent(fearType, {
+        intensity: Math.abs(eventData.fearDelta) / 15,
+        source: eventData.id || 'unknown'
+      });
     }
     
-    if (eventData.healthDelta) {
-      this.gameState.updateHealth(eventData.healthDelta);
+    if (eventData.damageEvent) {
+      this.healthSystem.applyDamage(eventData.damageEvent.type, {
+        amount: eventData.damageEvent.amount,
+        source: eventData.id || 'unknown',
+        duration: eventData.damageEvent.duration
+      });
+    } else if (eventData.healthDelta && eventData.healthDelta < 0) {
+      // Legacy support - convert to damage event
+      this.healthSystem.applyDamage('environmental', {
+        amount: Math.abs(eventData.healthDelta),
+        source: eventData.id || 'unknown'
+      });
+    } else if (eventData.healthDelta && eventData.healthDelta > 0) {
+      // Healing event
+      this.healthSystem.heal(eventData.healthDelta, eventData.id || 'unknown');
     }
 
     console.log('Event triggered:', eventData.id);
@@ -196,7 +244,10 @@ export class GameEngine {
     this.stop();
     this.gameState = new GameState();
     this.gameTimer = new GameTimer(this.gameState);
+    this.fearSystem = new FearSystem(this.gameState);
+    this.healthSystem = new HealthSystem(this.gameState);
     this.setupTimerEvents();
+    this.setupSystemIntegrations();
     console.log('GameEngine reset');
   }
 
@@ -220,6 +271,55 @@ export class GameEngine {
 
     // Register time-based events
     this.registerTimeBasedEvents();
+  }
+
+  /**
+   * Set up integrations between different systems
+   */
+  setupSystemIntegrations() {
+    // Set up fear system callbacks
+    this.fearSystem.onFearChange((changeType, data, fearLevel, fearState) => {
+      // Trigger health effects based on extreme fear
+      if (fearLevel >= 95 && changeType === 'event') {
+        this.healthSystem.applyDamage('fear_induced', { 
+          amount: 5, 
+          source: 'extreme_fear' 
+        });
+      }
+
+      // Notify update callbacks about fear changes
+      this.updateCallbacks.forEach(callback => {
+        try {
+          if (callback.onFearChange) {
+            callback.onFearChange(changeType, data, fearLevel, fearState);
+          }
+        } catch (error) {
+          console.error('Error in fear change callback:', error);
+        }
+      });
+    });
+
+    // Set up health system callbacks
+    this.healthSystem.onHealthChange((changeType, data, healthLevel, healthState) => {
+      // Trigger fear effects based on low health
+      if (healthLevel <= 20 && changeType === 'damage') {
+        this.fearSystem.triggerFearEvent('panic_attack', { 
+          intensity: 0.8, 
+          source: 'low_health' 
+        });
+      }
+
+      // Notify update callbacks about health changes
+      this.updateCallbacks.forEach(callback => {
+        try {
+          if (callback.onHealthChange) {
+            callback.onHealthChange(changeType, data, healthLevel, healthState);
+          }
+        } catch (error) {
+          console.error('Error in health change callback:', error);
+        }
+      });
+    });
   }
 
   /**
@@ -250,25 +350,41 @@ export class GameEngine {
    * @param {number} hour - Current hour
    */
   triggerHourlyEvent(hour) {
-    // Different events based on time of night
+    // Different events based on time of night using the new fear system
     switch (hour) {
       case 0: // Midnight
-        this.gameState.updateFear(5);
+        this.fearSystem.triggerFearEvent('ambient', { 
+          intensity: 0.8, 
+          source: 'midnight_hour' 
+        });
         break;
       case 1:
-        this.gameState.updateFear(3);
+        this.fearSystem.triggerFearEvent('whisper', { 
+          intensity: 0.6, 
+          source: 'late_night' 
+        });
         break;
       case 2:
-        this.gameState.updateFear(7);
+        this.fearSystem.triggerFearEvent('footsteps', { 
+          intensity: 1.0, 
+          source: 'deep_night' 
+        });
         break;
       case 3: // Witching hour
-        this.gameState.updateFear(10);
+        this.fearSystem.triggerFearEvent('supernatural', { 
+          intensity: 1.2, 
+          source: 'witching_hour' 
+        });
         break;
       case 4:
-        this.gameState.updateFear(5);
+        this.fearSystem.triggerFearEvent('darkness', { 
+          intensity: 0.9, 
+          source: 'pre_dawn' 
+        });
         break;
       case 5:
-        this.gameState.updateFear(-5); // Fear starts to decrease as dawn approaches
+        // Dawn approaches - add positive modifier instead of negative fear
+        this.fearSystem.addFearModifier('dawn_hope', 0.5, 60000); // 1 minute of reduced fear
         break;
     }
   }

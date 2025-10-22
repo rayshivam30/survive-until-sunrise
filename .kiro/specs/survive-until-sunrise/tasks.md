@@ -58,7 +58,12 @@
   - Implement win/lose conditions based on timer reaching 6:00 AM
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
-- [ ] 6. Develop fear and health mechanics system
+- [x] 6. Develop fear and health mechanics system
+
+
+
+
+
   - Implement FearSystem class with dynamic fear level calculation based on events
   - Create HealthSystem class with health tracking and damage mechanics
   - Add fear-based action success rate modification system
