@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { GameProvider, useGame } from "./context/GameContext";
 import VoiceController from "./components/VoiceController";
 import GameDemo from "./components/GameDemo";
-import { playAmbient, playWhisper } from "./utils/soundManager";
+import { initializeAudio, playAmbient, playWhisper, updateAudioForGameState } from "./utils/soundManager";
 
 // Game component that uses the game context
 function Game() {
@@ -21,11 +21,21 @@ function Game() {
 
   useEffect(() => {
     if (isEngineReady) {
-      // Start the game when engine is ready
-      startGame();
-      playAmbient();
+      // Initialize audio system first
+      initializeAudio().then(() => {
+        // Start the game when engine is ready
+        startGame();
+        playAmbient();
+      });
     }
   }, [isEngineReady, startGame]);
+
+  // Update audio based on game state changes
+  useEffect(() => {
+    if (gameState && isEngineReady) {
+      updateAudioForGameState(gameState);
+    }
+  }, [gameState, isEngineReady]);
 
   const onCommand = (command) => {
     // Handle command through game engine
