@@ -34,6 +34,11 @@ export class GameState {
       voice: 0.9
     };
 
+    // System-managed properties
+    this.currentActionSuccessRate = 95; // Managed by FearSystem
+    this.currentFearResistance = 1.0; // Managed by HealthSystem
+    this.movementPenalty = 1.0; // Managed by HealthSystem
+
     // Game constants
     this.GAME_DURATION_MINUTES = 7; // 7 real minutes = 7 game hours (11 PM to 6 AM)
     this.SUNRISE_TIME = "06:00";
@@ -67,17 +72,11 @@ export class GameState {
     if (!this.gameStarted || !this.isAlive) return;
 
     // Note: Time updates are now handled by GameTimer
-    // This method focuses on other state updates
-
-    // Gradually reduce fear over time if no events
-    if (this.fearLevel > 0) {
-      this.updateFear(-0.1 * (deltaTime / 1000)); // Reduce fear slowly
-    }
-
-    // Regenerate health slowly over time (very slow)
-    if (this.health < this.MAX_HEALTH && this.health > 0) {
-      this.updateHealth(0.05 * (deltaTime / 1000)); // Very slow health regen
-    }
+    // Fear and health updates are now handled by FearSystem and HealthSystem
+    // This method focuses on other general state updates
+    
+    // Update real time elapsed
+    this.realTimeElapsed += deltaTime;
   }
 
   /**
@@ -279,15 +278,11 @@ export class GameState {
   }
 
   /**
-   * Get action success rate based on fear level
+   * Get action success rate based on fear level (managed by FearSystem)
    */
   getActionSuccessRate() {
     if (!this.isAlive) return 0;
-    
-    // Higher fear = lower success rate
-    const baseRate = 100;
-    const fearPenalty = this.fearLevel * 0.5; // 50% penalty at max fear
-    return Math.max(10, baseRate - fearPenalty); // Minimum 10% success rate
+    return this.currentActionSuccessRate;
   }
 
   /**
