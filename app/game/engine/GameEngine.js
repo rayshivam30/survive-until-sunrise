@@ -7,13 +7,15 @@ import { GameState } from './GameState.js';
 import { GameTimer } from './GameTimer.js';
 import { FearSystem } from './FearSystem.js';
 import { HealthSystem } from './HealthSystem.js';
+import EventSystem from './EventSystem.js';
 
 export class GameEngine {
-  constructor() {
+  constructor(audioManager = null, voiceController = null) {
     this.gameState = new GameState();
     this.gameTimer = new GameTimer(this.gameState);
     this.fearSystem = new FearSystem(this.gameState);
     this.healthSystem = new HealthSystem(this.gameState);
+    this.eventSystem = new EventSystem(this.gameState, audioManager, voiceController);
     this.isRunning = false;
     this.lastUpdateTime = 0;
     this.updateCallbacks = new Set();
@@ -90,6 +92,9 @@ export class GameEngine {
     // Update fear and health systems
     this.fearSystem.update(deltaTime);
     this.healthSystem.update(deltaTime);
+    
+    // Update event system
+    this.eventSystem.update();
 
     // Notify all registered update callbacks
     this.updateCallbacks.forEach(callback => {
@@ -114,6 +119,16 @@ export class GameEngine {
     
     // Record command in game state
     this.gameState.addCommand(normalizedCommand);
+
+    // Check if command responds to active events first
+    const activeEvents = this.eventSystem.getActiveEvents();
+    for (const event of activeEvents) {
+      const response = this.eventSystem.evaluatePlayerResponse(normalizedCommand, event);
+      if (response) {
+        console.log(`Command "${command}" handled by event system`);
+        return true;
+      }
+    }
 
     // Check for registered command handlers
     for (const [pattern, handler] of this.commandHandlers) {
@@ -186,6 +201,13 @@ export class GameEngine {
   }
 
   /**
+   * Get event system instance
+   */
+  getEventSystem() {
+    return this.eventSystem;
+  }
+
+  /**
    * Check if game is currently running
    */
   isGameRunning() {
@@ -246,6 +268,7 @@ export class GameEngine {
     this.gameTimer = new GameTimer(this.gameState);
     this.fearSystem = new FearSystem(this.gameState);
     this.healthSystem = new HealthSystem(this.gameState);
+    this.eventSystem.clearEventHistory();
     this.setupTimerEvents();
     this.setupSystemIntegrations();
     console.log('GameEngine reset');
