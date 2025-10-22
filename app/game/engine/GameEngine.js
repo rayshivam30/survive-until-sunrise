@@ -8,6 +8,7 @@ import { GameTimer } from './GameTimer.js';
 import { FearSystem } from './FearSystem.js';
 import { HealthSystem } from './HealthSystem.js';
 import { InventorySystem } from './InventorySystem.js';
+import { EndingSystem } from './EndingSystem.js';
 import EventSystem from './EventSystem.js';
 
 export class GameEngine {
@@ -17,6 +18,7 @@ export class GameEngine {
     this.fearSystem = new FearSystem(this.gameState);
     this.healthSystem = new HealthSystem(this.gameState);
     this.inventorySystem = new InventorySystem(this.gameState, audioManager, voiceNarrator);
+    this.endingSystem = new EndingSystem(this.gameState, audioManager, voiceNarrator);
     this.eventSystem = new EventSystem(this.gameState, audioManager, voiceController);
     this.isRunning = false;
     this.lastUpdateTime = 0;
@@ -104,6 +106,11 @@ export class GameEngine {
     
     // Update event system
     this.eventSystem.update();
+
+    // Check for ending conditions
+    if (this.endingSystem.shouldTriggerEnding() && !this.endingSystem.getCurrentEnding()) {
+      this.triggerGameEnding();
+    }
 
     // Notify all registered update callbacks
     this.updateCallbacks.forEach(callback => {
@@ -236,6 +243,13 @@ export class GameEngine {
   }
 
   /**
+   * Get ending system instance
+   */
+  getEndingSystem() {
+    return this.endingSystem;
+  }
+
+  /**
    * Check if game is currently running
    */
   isGameRunning() {
@@ -288,6 +302,69 @@ export class GameEngine {
   }
 
   /**
+   * Trigger game ending sequence
+   */
+  async triggerGameEnding() {
+    if (!this.isRunning) return;
+    
+    try {
+      // Stop the game loop
+      this.stop();
+      
+      // Trigger the ending system
+      const endingResult = await this.endingSystem.triggerEnding();
+      
+      console.log('Game ending triggered:', endingResult.ending.title);
+      
+      // Notify callbacks about game ending
+      this.updateCallbacks.forEach(callback => {
+        try {
+          if (callback.onGameEnding) {
+            callback.onGameEnding(endingResult);
+          }
+        } catch (error) {
+          console.error('Error in game ending callback:', error);
+        }
+      });
+      
+      return endingResult;
+      
+    } catch (error) {
+      console.error('Error triggering game ending:', error);
+    }
+  }
+
+  /**
+   * Restart the game after an ending
+   */
+  async restartGame() {
+    try {
+      // Use ending system's restart functionality
+      const restartResult = this.endingSystem.restartGame();
+      
+      if (restartResult.success) {
+        // Reset all systems
+        this.reset();
+        
+        // Brief delay before starting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Start the game again
+        this.start();
+        
+        console.log('Game restarted successfully');
+        return { success: true, message: 'Game restarted successfully' };
+      }
+      
+      return restartResult;
+      
+    } catch (error) {
+      console.error('Error restarting game:', error);
+      return { success: false, message: 'Failed to restart game' };
+    }
+  }
+
+  /**
    * Reset game to initial state
    */
   reset() {
@@ -297,6 +374,7 @@ export class GameEngine {
     this.fearSystem = new FearSystem(this.gameState);
     this.healthSystem = new HealthSystem(this.gameState);
     this.inventorySystem = new InventorySystem(this.gameState, this.audioManager, this.voiceNarrator);
+    this.endingSystem = new EndingSystem(this.gameState, this.audioManager, this.voiceNarrator);
     this.eventSystem.clearEventHistory();
     this.setupTimerEvents();
     this.setupSystemIntegrations();
@@ -310,7 +388,7 @@ export class GameEngine {
     // Register win condition callback
     this.gameTimer.onWinCondition(() => {
       this.gameState.triggerVictory();
-      this.stop();
+      // Ending will be triggered by the update loop check
     });
 
     // Register hour change callback for atmospheric events
