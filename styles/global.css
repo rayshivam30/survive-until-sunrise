@@ -242,3 +242,97 @@ body {
     width: 100% !important;
   }
 }
+/*
+ Timer Component Styles */
+.timer-container {
+  font-family: 'Courier New', monospace;
+}
+
+.timer-display {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
+}
+
+.timer-near-sunrise {
+  border-color: rgba(251, 191, 36, 0.5);
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.2);
+}
+
+.timer-high-fear {
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+}
+
+.time-text {
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 0 10px currentColor;
+  font-weight: bold;
+}
+
+.countdown-time {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+.progress-bar-container {
+  background: #374151;
+  border-radius: 9999px;
+  height: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  height: 100%;
+  transition: width 1s ease;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.special-time-indicator {
+  font-weight: 600;
+  text-shadow: 0 0 8px currentColor;
+}
+
+/* HUD Stats styling */
+.hud-stats {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+
+/* Timer responsive design */
+@media (max-width: 768px) {
+  .timer-display {
+    padding: 0.75rem;
+  }
+  
+  .time-text {
+    font-size: 2rem !important;
+  }
+  
+  .countdown-time {
+    font-size: 1rem !important;
+  }
+}
+
+/* Timer animation keyframes */
+@keyframes timer-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+.timer-pulse {
+  animation: timer-pulse 2s infinite;
+}

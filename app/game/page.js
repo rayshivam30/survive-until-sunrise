@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { GameProvider, useGame } from "./context/GameContext";
 import VoiceController from "./components/VoiceController";
 import GameDemo from "./components/GameDemo";
+import Timer from "./components/Timer";
 import { initializeAudio, playAmbient, playWhisper, updateAudioForGameState } from "./utils/soundManager";
 
 // Game component that uses the game context
@@ -81,25 +82,33 @@ function Game() {
       <div className="w-2/3 p-4 relative">
         {/* Game HUD */}
         {gameState && (
-          <div className="game-hud fixed top-4 right-4 text-right p-4 rounded">
-            <div className="text-2xl font-bold terminal-text">{gameState.currentTime}</div>
-            <div className="text-sm opacity-75">Until Sunrise</div>
-            <div className={`text-sm mt-2 ${
-              gameState.fearLevel < 25 ? 'fear-low' : 
-              gameState.fearLevel < 50 ? 'fear-medium' : 
-              gameState.fearLevel < 75 ? 'fear-high' : 'fear-critical pulse'
-            }`}>
-              Fear: {Math.round(gameState.fearLevel)}%
+          <div className="game-hud fixed top-4 right-4 text-right">
+            {/* Timer Component */}
+            <Timer className="mb-4" />
+            
+            {/* Other HUD Elements */}
+            <div className="hud-stats p-4 rounded bg-black bg-opacity-70 border border-green-300 border-opacity-30">
+              <div className={`text-sm mb-2 ${
+                gameState.fearLevel < 25 ? 'fear-low' : 
+                gameState.fearLevel < 50 ? 'fear-medium' : 
+                gameState.fearLevel < 75 ? 'fear-high' : 'fear-critical pulse'
+              }`}>
+                Fear: {Math.round(gameState.fearLevel)}%
+              </div>
+              <div className={`text-sm mb-2 ${
+                gameState.health > 75 ? 'health-full' : 
+                gameState.health > 50 ? 'health-good' : 
+                gameState.health > 25 ? 'health-medium' : 
+                gameState.health > 10 ? 'health-low' : 'health-critical pulse'
+              }`}>
+                Health: {Math.round(gameState.health)}%
+              </div>
+              {gameState.inventory && gameState.inventory.length > 0 && (
+                <div className="text-sm opacity-75">
+                  Items: {gameState.inventory.length}
+                </div>
+              )}
             </div>
-            <div className={`text-sm ${
-              gameState.health > 75 ? 'health-full' : 
-              gameState.health > 50 ? 'health-good' : 
-              gameState.health > 25 ? 'health-medium' : 
-              gameState.health > 10 ? 'health-low' : 'health-critical pulse'
-            }`}>
-              Health: {Math.round(gameState.health)}%
-            </div>
-            <div className="text-sm opacity-75">Progress: {Math.round(gameProgress)}%</div>
           </div>
         )}
 
