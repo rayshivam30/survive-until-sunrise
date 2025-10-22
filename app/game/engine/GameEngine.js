@@ -4,14 +4,19 @@
  */
 
 import { GameState } from './GameState.js';
+import { GameTimer } from './GameTimer.js';
 
 export class GameEngine {
   constructor() {
     this.gameState = new GameState();
+    this.gameTimer = new GameTimer(this.gameState);
     this.isRunning = false;
     this.lastUpdateTime = 0;
     this.updateCallbacks = new Set();
     this.commandHandlers = new Map();
+    
+    // Set up timer event handlers
+    this.setupTimerEvents();
     
     // Bind methods to preserve context
     this.update = this.update.bind(this);
@@ -28,6 +33,7 @@ export class GameEngine {
     
     this.isRunning = true;
     this.gameState.startGame();
+    this.gameTimer.start();
     this.lastUpdateTime = performance.now();
     
     // Start the game loop
@@ -42,6 +48,7 @@ export class GameEngine {
   stop() {
     this.isRunning = false;
     this.gameState.endGame();
+    this.gameTimer.stop();
     console.log('GameEngine stopped');
   }
 
@@ -67,6 +74,9 @@ export class GameEngine {
    * @param {number} deltaTime - Time elapsed since last update in milliseconds
    */
   update(deltaTime) {
+    // Update game timer first
+    this.gameTimer.update(deltaTime);
+    
     // Update game state timing
     this.gameState.update(deltaTime);
 
@@ -185,6 +195,81 @@ export class GameEngine {
   reset() {
     this.stop();
     this.gameState = new GameState();
+    this.gameTimer = new GameTimer(this.gameState);
+    this.setupTimerEvents();
     console.log('GameEngine reset');
+  }
+
+  /**
+   * Set up timer event handlers for win/lose conditions and time-based events
+   */
+  setupTimerEvents() {
+    // Register win condition callback
+    this.gameTimer.onWinCondition(() => {
+      this.gameState.triggerVictory();
+      this.stop();
+    });
+
+    // Register hour change callback for atmospheric events
+    this.gameTimer.onHourChange((currentHour, previousHour) => {
+      console.log(`Hour changed from ${previousHour}:00 to ${currentHour}:00`);
+      
+      // Trigger hour-specific events
+      this.triggerHourlyEvent(currentHour);
+    });
+
+    // Register time-based events
+    this.registerTimeBasedEvents();
+  }
+
+  /**
+   * Register time-based events that trigger at specific times
+   */
+  registerTimeBasedEvents() {
+    // Midnight event
+    this.gameTimer.registerTimeBasedEvent('midnight', '00:00', () => {
+      this.gameState.updateFear(10);
+      console.log('Midnight strikes - fear increases');
+    });
+
+    // Witching hour event
+    this.gameTimer.registerTimeBasedEvent('witching_hour', '03:00', () => {
+      this.gameState.updateFear(15);
+      console.log('The witching hour - supernatural activity peaks');
+    });
+
+    // Dawn approaches event
+    this.gameTimer.registerTimeBasedEvent('dawn_approaches', '05:30', () => {
+      this.gameState.updateFear(-20);
+      console.log('Dawn approaches - hope returns');
+    });
+  }
+
+  /**
+   * Trigger hourly atmospheric events
+   * @param {number} hour - Current hour
+   */
+  triggerHourlyEvent(hour) {
+    // Different events based on time of night
+    switch (hour) {
+      case 0: // Midnight
+        this.gameState.updateFear(5);
+        break;
+      case 1:
+        this.gameState.updateFear(3);
+        break;
+      case 2:
+        this.gameState.updateFear(7);
+        break;
+      case 3: // Witching hour
+        this.gameState.updateFear(10);
+        break;
+      case 4:
+        this.gameState.updateFear(5);
+        break;
+      case 5:
+        this.gameState.updateFear(-5); // Fear starts to decrease as dawn approaches
+        break;
+    }
   }
 }

@@ -66,37 +66,18 @@ export class GameState {
   update(deltaTime) {
     if (!this.gameStarted || !this.isAlive) return;
 
-    // Update real time elapsed
-    this.realTimeElapsed += deltaTime;
-
-    // Update game time (1 real minute = 1 game hour)
-    this.updateGameTime();
-
-    // Check win condition (survived until sunrise)
-    if (this.currentTime === this.SUNRISE_TIME) {
-      this.triggerVictory();
-    }
+    // Note: Time updates are now handled by GameTimer
+    // This method focuses on other state updates
 
     // Gradually reduce fear over time if no events
     if (this.fearLevel > 0) {
       this.updateFear(-0.1 * (deltaTime / 1000)); // Reduce fear slowly
     }
-  }
 
-  /**
-   * Update the current game time based on real time elapsed
-   */
-  updateGameTime() {
-    const totalGameMinutes = (this.realTimeElapsed / 1000 / 60) * 60; // 1 real minute = 60 game minutes
-    const startHour = 23; // 11 PM
-    const currentGameHour = startHour + Math.floor(totalGameMinutes / 60);
-    const currentGameMinute = Math.floor(totalGameMinutes % 60);
-
-    // Handle day rollover (23:59 -> 00:00)
-    const displayHour = currentGameHour >= 24 ? currentGameHour - 24 : currentGameHour;
-    
-    // Format time as HH:MM
-    this.currentTime = `${displayHour.toString().padStart(2, '0')}:${currentGameMinute.toString().padStart(2, '0')}`;
+    // Regenerate health slowly over time (very slow)
+    if (this.health < this.MAX_HEALTH && this.health > 0) {
+      this.updateHealth(0.05 * (deltaTime / 1000)); // Very slow health regen
+    }
   }
 
   /**
