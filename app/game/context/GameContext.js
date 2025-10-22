@@ -169,14 +169,66 @@ export const GameProvider = ({ children }) => {
   }, []);
 
   /**
-   * Use item from inventory
+   * Use item from inventory (enhanced with InventorySystem)
    * @param {string} itemId - ID of item to use
    */
   const useItem = useCallback((itemId) => {
+    if (gameEngineRef.current && gameEngineRef.current.getInventorySystem) {
+      const context = {
+        location: gameEngineRef.current.getGameState().location,
+        fearLevel: gameEngineRef.current.getGameState().fearLevel,
+        inventory: gameEngineRef.current.getGameState().inventory
+      };
+      return gameEngineRef.current.getInventorySystem().useItem(itemId, context);
+    }
+    // Fallback to basic GameState method
     if (gameEngineRef.current) {
       return gameEngineRef.current.getGameState().useItem(itemId);
     }
     return false;
+  }, []);
+
+  /**
+   * Add item to inventory using InventorySystem
+   * @param {string} itemId - ID of item to add
+   * @param {Object} overrides - Property overrides
+   */
+  const addItem = useCallback((itemId, overrides = {}) => {
+    if (gameEngineRef.current && gameEngineRef.current.getInventorySystem) {
+      return gameEngineRef.current.getInventorySystem().addItem(itemId, overrides);
+    }
+    return false;
+  }, []);
+
+  /**
+   * Toggle item active state
+   * @param {string} itemId - ID of item to toggle
+   */
+  const toggleItemActive = useCallback((itemId) => {
+    if (gameEngineRef.current && gameEngineRef.current.getInventorySystem) {
+      return gameEngineRef.current.getInventorySystem().toggleItemActive(itemId);
+    }
+    return false;
+  }, []);
+
+  /**
+   * Get available item voice commands
+   */
+  const getAvailableItemCommands = useCallback(() => {
+    if (gameEngineRef.current && gameEngineRef.current.getInventorySystem) {
+      return gameEngineRef.current.getInventorySystem().getAvailableItemCommands();
+    }
+    return [];
+  }, []);
+
+  /**
+   * Get inventory statistics
+   */
+  const getInventoryStats = useCallback(() => {
+    if (gameEngineRef.current && gameEngineRef.current.getInventorySystem) {
+      return gameEngineRef.current.getInventorySystem().getInventoryStats();
+    }
+    return { totalItems: 0, activeItems: 0, itemsByType: {}, averageDurability: 0 };
   }, []);
 
   /**
@@ -229,6 +281,12 @@ export const GameProvider = ({ children }) => {
     addToInventory,
     useItem,
     setLocation,
+    
+    // Enhanced inventory methods
+    addItem,
+    toggleItemActive,
+    getAvailableItemCommands,
+    getInventoryStats,
     
     // Subscriptions
     onGameUpdate,

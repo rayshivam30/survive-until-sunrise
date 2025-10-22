@@ -75,8 +75,7 @@ export class GameState {
     // Fear and health updates are now handled by FearSystem and HealthSystem
     // This method focuses on other general state updates
     
-    // Update real time elapsed
-    this.realTimeElapsed += deltaTime;
+    // Note: realTimeElapsed is now managed by GameTimer to avoid double counting
   }
 
   /**
@@ -122,12 +121,15 @@ export class GameState {
       return false;
     }
 
+    // Preserve all item properties for enhanced inventory system
     const newItem = {
       id: item.id,
       name: item.name,
       type: item.type || 'misc',
       durability: item.durability || 100,
-      isActive: item.isActive || false
+      isActive: item.isActive || false,
+      // Copy all additional properties from enhanced inventory system
+      ...item
     };
 
     this.inventory.push(newItem);
@@ -154,7 +156,7 @@ export class GameState {
    * @param {string} itemId - ID of item to get
    */
   getInventoryItem(itemId) {
-    return this.inventory.find(item => item.id === itemId);
+    return this.inventory.find(item => item.id === itemId) || null;
   }
 
   /**

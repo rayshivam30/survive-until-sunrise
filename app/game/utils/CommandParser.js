@@ -60,6 +60,30 @@ export class CommandParser {
         aliases: ['commands', 'what can i do', 'instructions'], 
         category: 'meta',
         description: 'Get help with commands'
+      }],
+      ['use', {
+        action: 'use',
+        aliases: ['activate', 'turn on', 'employ', 'utilize'],
+        category: 'inventory',
+        description: 'Use an item from inventory'
+      }],
+      ['search', {
+        action: 'search',
+        aliases: ['look for', 'find', 'examine', 'investigate'],
+        category: 'inventory',
+        description: 'Search for items in the current location'
+      }],
+      ['inventory', {
+        action: 'inventory',
+        aliases: ['items', 'what do i have', 'check inventory', 'my items'],
+        category: 'inventory',
+        description: 'Check your current inventory'
+      }],
+      ['combine', {
+        action: 'combine',
+        aliases: ['mix', 'use with', 'put together'],
+        category: 'inventory',
+        description: 'Combine items together'
       }]
     ]);
 
@@ -416,18 +440,36 @@ export class CommandParser {
    */
   validateCommand(result, gameContext = {}) {
     // Check if player can perform actions
-    if (gameContext && gameContext.fearLevel >= 90 && result.category !== 'passive') {
+    if (gameContext && gameContext.fearLevel >= 90 && result.category !== 'passive' && result.category !== 'inventory') {
       result.validationError = 'Too scared to perform this action';
       return false;
     }
     
-    // Check tool availability
+    // Check tool availability for legacy flashlight command
     if (result.action === 'flashlight') {
       const hasFlashlight = gameContext && gameContext.inventory && 
-        gameContext.inventory.some(item => item.type === 'tool' && item.name.includes('flashlight'));
+        gameContext.inventory.some(item => item.type === 'tool' && item.name.toLowerCase().includes('flashlight'));
       if (!hasFlashlight) {
         result.validationError = 'Flashlight not available';
         return false;
+      }
+    }
+    
+    // Validate inventory-specific commands
+    if (result.category === 'inventory') {
+      switch (result.action) {
+        case 'use':
+          // Generic use command - will be handled by InventorySystem
+          break;
+        case 'search':
+          // Search is always valid
+          break;
+        case 'inventory':
+          // Inventory check is always valid
+          break;
+        case 'combine':
+          // Combination validation will be handled by InventorySystem
+          break;
       }
     }
     
