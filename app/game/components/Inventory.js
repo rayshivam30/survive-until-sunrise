@@ -150,10 +150,11 @@ const Inventory = ({
     }
   };
 
-  // Handle item usage (if game engine supports it)
+  // Handle item usage using enhanced inventory system
   const handleItemUse = (item) => {
     if (gameEngine?.useItem) {
-      gameEngine.useItem(item.id);
+      const result = gameEngine.useItem(item.id);
+      console.log('Item usage result:', result);
     }
     setSelectedItem(null);
   };

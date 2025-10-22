@@ -96,7 +96,12 @@
   - Add VoiceIndicator component to show listening status and command feedback
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 
-- [ ] 9. Implement inventory and item management system
+- [x] 9. Implement inventory and item management system
+
+
+
+
+
   - Create Inventory class with item storage and management capabilities
   - Implement item usage system for tools like flashlight with durability tracking
   - Add item discovery events and inventory updates through voice commands

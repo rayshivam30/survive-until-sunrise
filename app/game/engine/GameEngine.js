@@ -7,14 +7,16 @@ import { GameState } from './GameState.js';
 import { GameTimer } from './GameTimer.js';
 import { FearSystem } from './FearSystem.js';
 import { HealthSystem } from './HealthSystem.js';
+import { InventorySystem } from './InventorySystem.js';
 import EventSystem from './EventSystem.js';
 
 export class GameEngine {
-  constructor(audioManager = null, voiceController = null) {
+  constructor(audioManager = null, voiceController = null, voiceNarrator = null) {
     this.gameState = new GameState();
     this.gameTimer = new GameTimer(this.gameState);
     this.fearSystem = new FearSystem(this.gameState);
     this.healthSystem = new HealthSystem(this.gameState);
+    this.inventorySystem = new InventorySystem(this.gameState, audioManager, voiceNarrator);
     this.eventSystem = new EventSystem(this.gameState, audioManager, voiceController);
     this.isRunning = false;
     this.lastUpdateTime = 0;
@@ -43,6 +45,10 @@ export class GameEngine {
     this.isRunning = true;
     this.gameState.startGame();
     this.gameTimer.start();
+    
+    // Initialize starting inventory
+    this.inventorySystem.initializeStartingInventory();
+    
     this.lastUpdateTime = performance.now();
     
     // Start the game loop
@@ -93,6 +99,9 @@ export class GameEngine {
     this.fearSystem.update(deltaTime);
     this.healthSystem.update(deltaTime);
     
+    // Update inventory system
+    this.inventorySystem.update(deltaTime);
+    
     // Update event system
     this.eventSystem.update();
 
@@ -128,6 +137,18 @@ export class GameEngine {
         console.log(`Command "${command}" handled by event system`);
         return true;
       }
+    }
+
+    // Check if command is inventory-related
+    const inventoryResult = this.inventorySystem.processVoiceCommand(normalizedCommand, {
+      location: this.gameState.location,
+      fearLevel: this.gameState.fearLevel,
+      inventory: this.gameState.inventory
+    });
+    
+    if (inventoryResult.success) {
+      console.log(`Command "${command}" handled by inventory system`);
+      return true;
     }
 
     // Check for registered command handlers
@@ -208,6 +229,13 @@ export class GameEngine {
   }
 
   /**
+   * Get inventory system instance
+   */
+  getInventorySystem() {
+    return this.inventorySystem;
+  }
+
+  /**
    * Check if game is currently running
    */
   isGameRunning() {
@@ -268,6 +296,7 @@ export class GameEngine {
     this.gameTimer = new GameTimer(this.gameState);
     this.fearSystem = new FearSystem(this.gameState);
     this.healthSystem = new HealthSystem(this.gameState);
+    this.inventorySystem = new InventorySystem(this.gameState, this.audioManager, this.voiceNarrator);
     this.eventSystem.clearEventHistory();
     this.setupTimerEvents();
     this.setupSystemIntegrations();
