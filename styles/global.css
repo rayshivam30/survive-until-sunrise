@@ -1,0 +1,244 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global styles for the horror survival game */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Courier New', monospace;
+  background-color: #000000;
+  color: #00ff00;
+  overflow: hidden;
+}
+
+/* Custom scrollbar for terminal feel */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #00ff00;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00cc00;
+}
+
+/* Terminal-like text effects */
+.terminal-text {
+  text-shadow: 0 0 5px #00ff00;
+  font-family: 'Courier New', monospace;
+}
+
+/* Glitch effect for scary moments */
+@keyframes glitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+.glitch {
+  animation: glitch 0.3s infinite;
+}
+
+/* Fear level indicator colors */
+.fear-low { color: #00ff00; }
+.fear-medium { color: #ffff00; }
+.fear-high { color: #ff6600; }
+.fear-critical { color: #ff0000; }
+
+/* Health indicator colors */
+.health-full { color: #00ff00; }
+.health-good { color: #99ff00; }
+.health-medium { color: #ffff00; }
+.health-low { color: #ff6600; }
+.health-critical { color: #ff0000; }
+
+/* Button styles for game controls */
+.game-button {
+  background: transparent;
+  border: 1px solid #00ff00;
+  color: #00ff00;
+  padding: 8px 16px;
+  font-family: 'Courier New', monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.game-button:hover {
+  background: #00ff00;
+  color: #000000;
+  box-shadow: 0 0 10px #00ff00;
+}
+
+.game-button:disabled {
+  border-color: #666666;
+  color: #666666;
+  cursor: not-allowed;
+}
+
+.game-button:disabled:hover {
+  background: transparent;
+  color: #666666;
+  box-shadow: none;
+}
+
+/* HUD styles */
+.game-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.8);
+  border-bottom: 1px solid #00ff00;
+  padding: 10px;
+}
+
+/* Message log styles */
+.message-log {
+  font-family: 'Courier New', monospace;
+  line-height: 1.4;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.message-log p {
+  margin: 0 0 5px 0;
+  opacity: 0.9;
+}
+
+.message-log p:last-child {
+  opacity: 1;
+  text-shadow: 0 0 5px #00ff00;
+}
+
+/* Inventory styles */
+.inventory-item {
+  display: inline-block;
+  margin: 2px 5px;
+  padding: 2px 8px;
+  border: 1px solid #00ff00;
+  background: rgba(0, 255, 0, 0.1);
+  font-size: 12px;
+}
+
+/* Status bars */
+.status-bar {
+  width: 100%;
+  height: 20px;
+  background: #333333;
+  border: 1px solid #00ff00;
+  position: relative;
+  overflow: hidden;
+}
+
+.status-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.status-bar-fill.fear {
+  background: linear-gradient(90deg, #00ff00 0%, #ffff00 50%, #ff0000 100%);
+}
+
+.status-bar-fill.health {
+  background: linear-gradient(90deg, #ff0000 0%, #ffff00 50%, #00ff00 100%);
+}
+
+/* Typing animation for messages */
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.typing-animation {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typing 2s steps(40, end);
+}
+
+/* Pulsing effect for critical states */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.pulse {
+  animation: pulse 1s infinite;
+}
+
+/* Demo panel styles */
+.demo-panel {
+  background: rgba(40, 40, 40, 0.95);
+  border-right: 1px solid #00ff00;
+  font-size: 14px;
+}
+
+.demo-section {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: rgba(60, 60, 60, 0.5);
+  border-radius: 5px;
+}
+
+.demo-section h3 {
+  margin: 0 0 10px 0;
+  color: #00ff00;
+  font-weight: bold;
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.demo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.demo-button {
+  padding: 5px 10px;
+  font-size: 11px;
+  border: 1px solid;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  transition: all 0.2s ease;
+}
+
+.demo-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.demo-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .demo-panel {
+    display: none;
+  }
+  
+  .game-main {
+    width: 100% !important;
+  }
+}
