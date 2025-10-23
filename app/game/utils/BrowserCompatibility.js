@@ -1,6 +1,6 @@
 /**
- * Browser Compatibility Detection and Fallback System
- * Detects browser capabilities and provides appropriate fallback messaging
+ * BrowserCompatibility - Handles browser feature detection and fallbacks
+ * Provides graceful degradation for unsupported Web APe fallback messaging
  */
 
 export class BrowserCompatibility {
@@ -122,6 +122,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkSpeechRecognition() {
+    // Skip in non-browser environments
+    if (typeof window === 'undefined') {
+      return {
+        supported: false,
+        message: 'Speech Recognition not available in non-browser environment'
+      };
+    }
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
@@ -158,6 +166,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkSpeechSynthesis() {
+    // Skip in non-browser environments
+    if (typeof window === 'undefined') {
+      return {
+        supported: false,
+        message: 'Speech Synthesis not available in non-browser environment'
+      };
+    }
+
     if (!window.speechSynthesis) {
       return {
         supported: false,
@@ -186,6 +202,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkAudioContext() {
+    // Skip in non-browser environments
+    if (typeof window === 'undefined') {
+      return {
+        supported: false,
+        message: 'Web Audio API not available in non-browser environment'
+      };
+    }
+
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     
     if (!AudioContext) {
@@ -227,6 +251,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkMediaDevices() {
+    // Skip in non-browser environments
+    if (typeof navigator === 'undefined') {
+      return {
+        supported: false,
+        message: 'Media Devices API not available in non-browser environment'
+      };
+    }
+
     if (!navigator.mediaDevices) {
       return {
         supported: false,
@@ -256,6 +288,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkLocalStorage() {
+    // Skip in non-browser environments
+    if (typeof localStorage === 'undefined') {
+      return {
+        supported: false,
+        message: 'localStorage not available in non-browser environment'
+      };
+    }
+
     try {
       const testKey = 'compatibility-test';
       const testValue = 'test';
@@ -288,6 +328,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkSessionStorage() {
+    // Skip in non-browser environments
+    if (typeof sessionStorage === 'undefined') {
+      return {
+        supported: false,
+        message: 'sessionStorage not available in non-browser environment'
+      };
+    }
+
     try {
       const testKey = 'session-test';
       const testValue = 'test';
@@ -314,6 +362,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkWebAudio() {
+    // Skip in non-browser environments
+    if (typeof window === 'undefined') {
+      return {
+        supported: false,
+        message: 'Web Audio API not available in non-browser environment'
+      };
+    }
+
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     
     if (!AudioContext) {
@@ -356,6 +412,16 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkHTTPS() {
+    // Skip in non-browser environments
+    if (typeof window === 'undefined' || !window.location) {
+      return {
+        supported: false,
+        message: 'HTTPS check not available in non-browser environment',
+        protocol: 'unknown',
+        hostname: 'unknown'
+      };
+    }
+
     const isHTTPS = window.location.protocol === 'https:';
     const isLocalhost = window.location.hostname === 'localhost' || 
                        window.location.hostname === '127.0.0.1';
@@ -376,6 +442,16 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkModernBrowser() {
+    // Skip in non-browser environments
+    if (typeof navigator === 'undefined') {
+      return {
+        supported: false,
+        message: 'Browser check not available in non-browser environment',
+        browser: 'unknown',
+        version: 0
+      };
+    }
+
     const userAgent = navigator.userAgent;
     const browserInfo = this.getBrowserInfo();
     
@@ -405,6 +481,14 @@ export class BrowserCompatibility {
    */
   checkWebGL() {
     try {
+      // Skip WebGL check in test environments
+      if (typeof jest !== 'undefined' || process.env.NODE_ENV === 'test') {
+        return {
+          supported: false,
+          message: 'WebGL check skipped in test environment'
+        };
+      }
+
       const canvas = document.createElement('canvas');
       const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
       
@@ -436,6 +520,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkFullscreen() {
+    // Skip in non-browser environments
+    if (typeof document === 'undefined') {
+      return {
+        supported: false,
+        message: 'Fullscreen API not available in non-browser environment'
+      };
+    }
+
     const element = document.documentElement;
     const supported = !!(
       element.requestFullscreen ||
@@ -456,6 +548,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkVibration() {
+    // Skip in non-browser environments
+    if (typeof navigator === 'undefined') {
+      return {
+        supported: false,
+        message: 'Vibration API not available in non-browser environment'
+      };
+    }
+
     const supported = !!navigator.vibrate;
     
     return {
@@ -469,6 +569,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkNotifications() {
+    // Skip in non-browser environments
+    if (typeof window === 'undefined') {
+      return {
+        supported: false,
+        message: 'Notifications API not available in non-browser environment'
+      };
+    }
+
     const supported = !!window.Notification;
     
     return {
@@ -483,6 +591,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkServiceWorker() {
+    // Skip in non-browser environments
+    if (typeof navigator === 'undefined') {
+      return {
+        supported: false,
+        message: 'Service Worker not available in non-browser environment'
+      };
+    }
+
     const supported = !!navigator.serviceWorker;
     
     return {
@@ -496,6 +612,14 @@ export class BrowserCompatibility {
    * @returns {Object} Support status and details
    */
   checkWebAssembly() {
+    // Skip in non-browser environments
+    if (typeof window === 'undefined') {
+      return {
+        supported: false,
+        message: 'WebAssembly not available in non-browser environment'
+      };
+    }
+
     const supported = !!window.WebAssembly;
     
     return {
@@ -509,6 +633,20 @@ export class BrowserCompatibility {
    * @returns {Object} Browser details
    */
   getBrowserInfo() {
+    // Skip in non-browser environments
+    if (typeof navigator === 'undefined') {
+      return {
+        name: 'unknown',
+        version: 0,
+        userAgent: 'non-browser-environment',
+        platform: 'unknown',
+        language: 'unknown',
+        cookieEnabled: false,
+        onLine: false,
+        hardwareConcurrency: 1
+      };
+    }
+
     const userAgent = navigator.userAgent;
     let browserName = 'unknown';
     let browserVersion = 0;
@@ -791,12 +929,18 @@ export class BrowserCompatibility {
   }
 
   /**
-   * Reset compatibility state
+   * Check for performance-related browser features
+   * @returns {Object} Performance feature support
    */
-  reset() {
-    this.compatibilityResults = null;
-    this.fallbacksActivated = [];
-    this.warningsShown = [];
+  checkPerformanceFeatures() {
+    return {
+      performanceObserver: !!window.PerformanceObserver,
+      performanceTiming: !!performance.timing,
+      performanceMemory: !!(performance.memory || performance.webkitMemory),
+      requestAnimationFrame: !!window.requestAnimationFrame,
+      intersectionObserver: !!window.IntersectionObserver,
+      resizeObserver: !!window.ResizeObserver
+    };
   }
 }
 

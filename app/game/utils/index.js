@@ -20,5 +20,12 @@ export { default as useVoiceNarrator } from './useVoiceNarrator.js';
 // Command Processing
 export { CommandParser } from './CommandParser.js';
 
+// Performance Optimization
+export { AudioPreloader } from './AudioPreloader.js';
+export { VoiceCommandDebouncer } from './VoiceCommandDebouncer.js';
+export { PerformanceMonitor, performanceMonitor } from './PerformanceMonitor.js';
+export { PerformanceOptimizer } from './PerformanceOptimizer.js';
+export { PerformanceIntegration, performanceIntegration } from './PerformanceIntegration.js';
+
 // Analysis and Utilities
 export { fearAnalyzer } from './fearAnalyzer.js';

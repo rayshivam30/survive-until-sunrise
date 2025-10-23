@@ -77,14 +77,14 @@
   - Implement browser compatibility detection with appropriate fallback messaging
   - _Requirements: 1.6, 3.5, 9.4_
 
-- [ ] 12. Create game initialization and main game loop
+- [x] 12. Create game initialization and main game loop
   - Implement game startup sequence with audio initialization and permission requests
   - Create main game loop with delta time updates and event processing
   - Add game state persistence using localStorage for checkpoint recovery
   - Integrate all systems (voice, audio, events, timer) into cohesive gameplay experience
   - _Requirements: 9.1, 9.2, 9.3, 9.5_
 
-- [ ] 13. Implement performance optimizations and browser compatibility
+- [x] 13. Implement performance optimizations and browser compatibility
   - Add audio preloading and lazy loading for better performance
   - Implement voice command debouncing to prevent rapid-fire commands
   - Create browser feature detection with graceful fallbacks for unsupported APIs
