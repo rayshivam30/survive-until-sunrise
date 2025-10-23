@@ -321,7 +321,7 @@ body {
   }
 }
 
-/* Timer animation keyframes */
+/* Enhanced timer animation keyframes */
 @keyframes timer-pulse {
   0%, 100% {
     opacity: 1;
@@ -335,4 +335,179 @@ body {
 
 .timer-pulse {
   animation: timer-pulse 2s infinite;
+}
+
+/* Enhanced visual polish animations */
+@keyframes smooth-glow {
+  0%, 100% {
+    text-shadow: 0 0 5px currentColor;
+  }
+  50% {
+    text-shadow: 0 0 15px currentColor, 0 0 25px currentColor;
+  }
+}
+
+.enhanced-glow {
+  animation: smooth-glow 3s infinite;
+}
+
+/* Smooth state transitions */
+.fear-transition {
+  transition: color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              text-shadow 0.3s ease;
+}
+
+.health-transition {
+  transition: color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              text-shadow 0.3s ease;
+}
+
+/* Enhanced button interactions */
+.game-button {
+  background: transparent;
+  border: 1px solid #00ff00;
+  color: #00ff00;
+  padding: 8px 16px;
+  font-family: 'Courier New', monospace;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.game-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.game-button:hover::before {
+  left: 100%;
+}
+
+.game-button:hover {
+  background: rgba(0, 255, 0, 0.1);
+  color: #00ff00;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Enhanced message log with smooth scrolling */
+.message-log {
+  font-family: 'Courier New', monospace;
+  line-height: 1.4;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.9);
+  scroll-behavior: smooth;
+}
+
+.message-log p {
+  margin: 0 0 5px 0;
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.message-log p:last-child {
+  opacity: 1;
+  text-shadow: 0 0 8px #00ff00;
+  animation: message-appear 0.5s ease;
+}
+
+@keyframes message-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced status bars with smooth animations */
+.status-bar {
+  width: 100%;
+  height: 20px;
+  background: #333333;
+  border: 1px solid #00ff00;
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.status-bar-fill {
+  height: 100%;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.status-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    transparent 100%);
+  animation: status-shine 2s infinite;
+}
+
+@keyframes status-shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.status-bar-fill.fear {
+  background: linear-gradient(90deg, #00ff00 0%, #ffff00 50%, #ff0000 100%);
+}
+
+.status-bar-fill.health {
+  background: linear-gradient(90deg, #ff0000 0%, #ffff00 50%, #00ff00 100%);
+}
+
+/* Enhanced inventory styling */
+.inventory-item {
+  display: inline-block;
+  margin: 2px 5px;
+  padding: 4px 10px;
+  border: 1px solid #00ff00;
+  background: rgba(0, 255, 0, 0.1);
+  font-size: 12px;
+  border-radius: 4px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.inventory-item:hover {
+  background: rgba(0, 255, 0, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 255, 0, 0.3);
+}
+
+/* Performance optimizations */
+.game-hud * {
+  will-change: transform, opacity;
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .game-hud,
+  .game-button,
+  .status-bar-fill,
+  .message-log p {
+    animation: none !important;
+    transition: none !important;
+  }
 }

@@ -11,6 +11,7 @@ import { InventorySystem } from './InventorySystem.js';
 import { EndingSystem } from './EndingSystem.js';
 import EventSystem from './EventSystem.js';
 import GameLoop from './GameLoop.js';
+import PerformanceOptimizer from '../utils/PerformanceOptimizer.js';
 
 export class GameEngine {
   constructor(audioManager = null, voiceController = null, voiceNarrator = null) {
@@ -27,6 +28,15 @@ export class GameEngine {
       targetFPS: 60,
       enablePerformanceMonitoring: true,
       logPerformance: false
+    });
+    
+    // Performance optimization system
+    this.performanceOptimizer = new PerformanceOptimizer(this, {
+      targetFPS: 60,
+      minFPS: 30,
+      adaptiveOptimization: true,
+      onPerformanceChange: this.handlePerformanceChange.bind(this),
+      onOptimizationApplied: this.handleOptimizationApplied.bind(this)
     });
     
     this.isRunning = false;
@@ -72,7 +82,10 @@ export class GameEngine {
     // Start the advanced game loop
     this.gameLoop.start();
     
-    console.log('GameEngine started with advanced game loop');
+    // Start performance monitoring
+    this.performanceOptimizer.startMonitoring();
+    
+    console.log('GameEngine started with advanced game loop and performance optimization');
   }
 
   /**
@@ -85,6 +98,9 @@ export class GameEngine {
     
     // Stop the game loop
     this.gameLoop.stop();
+    
+    // Stop performance monitoring
+    this.performanceOptimizer.stopMonitoring();
     
     console.log('GameEngine stopped');
   }
@@ -153,6 +169,12 @@ export class GameEngine {
    */
   handleCommand(command) {
     if (!this.isRunning || !this.gameState.isAlive) {
+      return false;
+    }
+
+    // Handle null/undefined commands gracefully
+    if (!command || typeof command !== 'string') {
+      console.warn('Invalid command received:', command);
       return false;
     }
 
@@ -287,6 +309,12 @@ export class GameEngine {
    */
   triggerEvent(eventData) {
     if (!this.isRunning) return;
+
+    // Handle null/undefined eventData gracefully
+    if (!eventData || typeof eventData !== 'object') {
+      console.warn('Invalid event data received:', eventData);
+      return;
+    }
 
     // Add event to game state history
     this.gameState.addEvent(eventData.id || 'unknown');
@@ -755,6 +783,7 @@ export class GameEngine {
       gameLoop: this.gameLoop.getStatus(),
       gameState: this.gameState.serialize(),
       performance: this.getPerformanceStats(),
+      optimization: this.performanceOptimizer.getPerformanceReport(),
       systems: {
         audio: !!this.audioManager && this.audioManager.isInitialized,
         voice: !!this.voiceNarrator && this.voiceNarrator.isSupported,
@@ -766,5 +795,147 @@ export class GameEngine {
         endings: this.endingSystem.isActive()
       }
     };
+  }
+
+  /**
+   * Handle performance change notifications from optimizer
+   * @param {Object} performanceData - Performance analysis data
+   */
+  handlePerformanceChange(performanceData) {
+    console.log('Performance change detected:', performanceData);
+    
+    // Notify update callbacks about performance issues
+    this.updateCallbacks.forEach(callback => {
+      try {
+        if (callback.onPerformanceChange) {
+          callback.onPerformanceChange(performanceData);
+        }
+      } catch (error) {
+        console.error('Error in performance change callback:', error);
+      }
+    });
+
+    // Apply immediate optimizations if critical
+    const criticalIssues = performanceData.issues.filter(issue => issue.severity === 'high');
+    if (criticalIssues.length > 0) {
+      this.applyCriticalOptimizations(criticalIssues);
+    }
+  }
+
+  /**
+   * Handle optimization application notifications
+   * @param {Object} optimizationData - Applied optimization data
+   */
+  handleOptimizationApplied(optimizationData) {
+    console.log('Optimization applied:', optimizationData);
+    
+    // Update systems based on optimization level
+    this.updateSystemsForOptimization(optimizationData.settings);
+    
+    // Notify callbacks
+    this.updateCallbacks.forEach(callback => {
+      try {
+        if (callback.onOptimizationApplied) {
+          callback.onOptimizationApplied(optimizationData);
+        }
+      } catch (error) {
+        console.error('Error in optimization applied callback:', error);
+      }
+    });
+  }
+
+  /**
+   * Apply critical optimizations immediately
+   * @param {Array} criticalIssues - Array of critical performance issues
+   */
+  applyCriticalOptimizations(criticalIssues) {
+    for (const issue of criticalIssues) {
+      switch (issue.type) {
+        case 'low_fps':
+          // Reduce update frequency immediately
+          this.gameLoop.setTargetFPS(Math.max(30, issue.value * 1.2));
+          
+          // Reduce audio effects
+          if (this.audioManager) {
+            this.audioManager.adjustVolume('effects', 0.5);
+          }
+          break;
+          
+        case 'high_memory':
+          // Clear audio cache
+          if (this.audioManager && this.audioManager.clearCache) {
+            this.audioManager.clearCache();
+          }
+          
+          // Reduce event frequency
+          if (this.eventSystem) {
+            this.eventSystem.setEventFrequency(0.5);
+          }
+          break;
+      }
+    }
+  }
+
+  /**
+   * Update systems based on optimization settings
+   * @param {Object} settings - Optimization settings
+   */
+  updateSystemsForOptimization(settings) {
+    // Update fear system
+    if (this.fearSystem && this.fearSystem.setUpdateFrequency) {
+      this.fearSystem.setUpdateFrequency(settings.updateFrequency);
+    }
+
+    // Update health system
+    if (this.healthSystem && this.healthSystem.setUpdateFrequency) {
+      this.healthSystem.setUpdateFrequency(settings.updateFrequency);
+    }
+
+    // Update event system
+    if (this.eventSystem) {
+      this.eventSystem.setEventFrequency(settings.effectsFrequency);
+    }
+
+    // Update voice narrator
+    if (this.voiceNarrator && !settings.voiceProcessing) {
+      this.voiceNarrator.clearQueue();
+    }
+  }
+
+  /**
+   * Get performance optimization recommendations
+   * @returns {Array} Array of optimization recommendations
+   */
+  getOptimizationRecommendations() {
+    return this.performanceOptimizer.getOptimizationRecommendations();
+  }
+
+  /**
+   * Force specific optimization level
+   * @param {number} level - Optimization level (0-5)
+   */
+  setOptimizationLevel(level) {
+    this.performanceOptimizer.forceOptimizationLevel(level);
+  }
+
+  /**
+   * Enable adaptive optimization
+   */
+  enableAdaptiveOptimization() {
+    this.performanceOptimizer.enableAdaptiveOptimization();
+  }
+
+  /**
+   * Clean up performance optimizer on destroy
+   */
+  destroy() {
+    if (this.performanceOptimizer) {
+      this.performanceOptimizer.destroy();
+    }
+    
+    // Stop all systems
+    this.stop();
+    
+    console.log('GameEngine destroyed');
   }
 }

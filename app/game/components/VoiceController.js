@@ -141,14 +141,17 @@ export default function VoiceController({
   }, []);
 
   /**
-   * Handle recognition results with advanced parsing
+   * Handle recognition results with enhanced parsing and accuracy improvements
    */
   const handleRecognitionResult = useCallback((event) => {
     const now = Date.now();
     
-    // Debounce rapid commands
-    if (now - lastCommandTimeRef.current < COMMAND_DEBOUNCE_MS) {
-      console.log('Command debounced');
+    // Enhanced debouncing with adaptive timing
+    const adaptiveDebounce = Math.max(COMMAND_DEBOUNCE_MS, 
+      commandHistory.length > 5 ? COMMAND_DEBOUNCE_MS * 0.8 : COMMAND_DEBOUNCE_MS);
+    
+    if (now - lastCommandTimeRef.current < adaptiveDebounce) {
+      console.log('Command debounced (adaptive)');
       return;
     }
     
@@ -159,29 +162,30 @@ export default function VoiceController({
     
     if (!result.isFinal) return; // Only process final results
     
-    // Get all alternatives for better parsing
-    const alternatives = Array.from(result).map(alternative => ({
+    // Enhanced alternative processing with confidence weighting
+    const alternatives = Array.from(result).map((alternative, index) => ({
       transcript: alternative.transcript.trim(),
-      confidence: alternative.confidence
-    }));
+      confidence: alternative.confidence || (0.9 - index * 0.1), // Fallback confidence
+      index
+    })).filter(alt => alt.transcript.length > 0);
     
-    console.log('Voice alternatives:', alternatives);
+    console.log('Voice alternatives (enhanced):', alternatives);
     
-    // Process each alternative and find the best parsed command
+    // Multi-pass parsing for better accuracy
     let bestParsedCommand = null;
     let bestOverallScore = 0;
     
+    // First pass: Direct command matching
     for (const alternative of alternatives) {
-      if (!alternative.transcript) continue;
-      
-      // Parse the command using CommandParser
       const parsedCommand = commandParserRef.current.parseCommand(
         alternative.transcript, 
         gameContext
       );
       
-      // Calculate overall score (parsing confidence * speech confidence)
-      const overallScore = parsedCommand.confidence * (alternative.confidence || 0.5);
+      // Enhanced scoring with context awareness
+      const contextBonus = this.calculateContextBonus(parsedCommand, gameContext);
+      const confidenceScore = parsedCommand.confidence * (alternative.confidence || 0.5);
+      const overallScore = confidenceScore + contextBonus;
       
       if (overallScore > bestOverallScore && overallScore >= confidenceThreshold) {
         bestOverallScore = overallScore;
@@ -189,19 +193,83 @@ export default function VoiceController({
           ...parsedCommand,
           speechConfidence: alternative.confidence,
           overallScore: overallScore,
-          alternatives: alternatives.map(alt => alt.transcript)
+          contextBonus: contextBonus,
+          alternatives: alternatives.map(alt => alt.transcript),
+          processingMethod: 'direct'
         };
       }
     }
     
-    // Handle the best command or provide feedback
+    // Second pass: Fuzzy matching for partial commands
+    if (!bestParsedCommand || bestOverallScore < confidenceThreshold * 1.2) {
+      for (const alternative of alternatives) {
+        const fuzzyParsed = commandParserRef.current.fuzzyParseCommand(
+          alternative.transcript,
+          gameContext
+        );
+        
+        if (fuzzyParsed && fuzzyParsed.confidence > 0.3) {
+          const contextBonus = this.calculateContextBonus(fuzzyParsed, gameContext);
+          const overallScore = fuzzyParsed.confidence * (alternative.confidence || 0.5) + contextBonus;
+          
+          if (overallScore > bestOverallScore) {
+            bestOverallScore = overallScore;
+            bestParsedCommand = {
+              ...fuzzyParsed,
+              speechConfidence: alternative.confidence,
+              overallScore: overallScore,
+              contextBonus: contextBonus,
+              alternatives: alternatives.map(alt => alt.transcript),
+              processingMethod: 'fuzzy'
+            };
+          }
+        }
+      }
+    }
+    
+    // Handle the best command or provide enhanced feedback
     if (bestParsedCommand && bestParsedCommand.isValid) {
       handleValidCommand(bestParsedCommand);
     } else {
       const fallbackTranscript = alternatives.length > 0 ? alternatives[0].transcript : '';
       handleInvalidCommand(fallbackTranscript, bestParsedCommand);
     }
-  }, [gameContext, confidenceThreshold]);
+  }, [gameContext, confidenceThreshold, commandHistory]);
+
+  /**
+   * Calculate context bonus for command relevance
+   */
+  const calculateContextBonus = useCallback((parsedCommand, context) => {
+    if (!parsedCommand || !context) return 0;
+    
+    let bonus = 0;
+    
+    // Fear level context
+    if (context.fearLevel > 70 && ['hide', 'run'].includes(parsedCommand.action)) {
+      bonus += 0.1; // Boost defensive commands when scared
+    }
+    
+    // Health context
+    if (context.health < 30 && ['hide', 'listen'].includes(parsedCommand.action)) {
+      bonus += 0.1; // Boost cautious commands when injured
+    }
+    
+    // Time context
+    if (context.currentTime) {
+      const hour = parseInt(context.currentTime.split(':')[0]);
+      if (hour >= 3 && hour <= 4 && ['hide', 'listen'].includes(parsedCommand.action)) {
+        bonus += 0.05; // Slight boost for stealth during witching hour
+      }
+    }
+    
+    // Recent command context (avoid repetition)
+    const recentCommands = commandHistory.slice(-3).map(cmd => cmd.action);
+    if (recentCommands.includes(parsedCommand.action)) {
+      bonus -= 0.05; // Slight penalty for repeated commands
+    }
+    
+    return Math.max(0, Math.min(0.2, bonus)); // Cap bonus at 0.2
+  }, [commandHistory]);
 
   /**
    * Handle no match event

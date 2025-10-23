@@ -96,21 +96,53 @@ const HUD = ({
     return () => window.removeEventListener('resize', updateScreenSize);
   }, []);
 
-  // Monitor game state for HUD visibility
+  // Enhanced game state monitoring with smooth transitions
   useEffect(() => {
     if (!gameState) return;
 
     const gameActive = gameState.gameStarted && gameState.isAlive;
     setIsGameActive(gameActive);
 
-    // Auto-hide HUD in certain conditions
-    if (gameState.fearLevel > 90) {
-      // Reduce HUD opacity when fear is very high
-      setHudOpacity(0.7);
-    } else {
-      setHudOpacity(1);
+    // Enhanced HUD opacity management with smooth transitions
+    const calculateOptimalOpacity = () => {
+      let baseOpacity = 1.0;
+      
+      // Fear-based opacity reduction
+      if (gameState.fearLevel > 90) {
+        baseOpacity = 0.6; // More dramatic reduction for extreme fear
+      } else if (gameState.fearLevel > 70) {
+        baseOpacity = 0.8; // Moderate reduction for high fear
+      } else if (gameState.fearLevel > 50) {
+        baseOpacity = 0.9; // Slight reduction for medium fear
+      }
+      
+      // Health-based opacity (when critically low)
+      if (gameState.health < 15) {
+        baseOpacity = Math.min(baseOpacity, 0.7); // Reduce visibility when near death
+      }
+      
+      // Time-based adjustments
+      if (gameState.currentTime) {
+        const hour = parseInt(gameState.currentTime.split(':')[0]);
+        if (hour >= 5) {
+          // Dawn approaching - increase visibility
+          baseOpacity = Math.min(1.0, baseOpacity + 0.1);
+        } else if (hour >= 3 && hour < 4) {
+          // Witching hour - slight reduction
+          baseOpacity = Math.max(0.5, baseOpacity - 0.1);
+        }
+      }
+      
+      return baseOpacity;
+    };
+
+    const targetOpacity = calculateOptimalOpacity();
+    
+    // Smooth opacity transition
+    if (Math.abs(hudOpacity - targetOpacity) > 0.05) {
+      setHudOpacity(targetOpacity);
     }
-  }, [gameState]);
+  }, [gameState, hudOpacity]);
 
   // Handle HUD visibility toggle
   const toggleHudVisibility = () => {
@@ -187,6 +219,12 @@ const HUD = ({
     <div
       ref={hudRef}
       className={`game-hud ${layout} ${className}`}
+      data-high-fear={gameState?.fearLevel > 80}
+      data-critical-health={gameState?.health < 20}
+      data-witching-hour={gameState?.currentTime && 
+        parseInt(gameState.currentTime.split(':')[0]) === 3}
+      data-dawn-approaching={gameState?.currentTime && 
+        parseInt(gameState.currentTime.split(':')[0]) >= 5}
       style={{
         position: 'fixed',
         top: 0,
@@ -196,7 +234,7 @@ const HUD = ({
         pointerEvents: 'none',
         zIndex: 1000,
         opacity: hudVisible ? hudOpacity : 0.3,
-        transition: 'opacity 0.3s ease',
+        transition: 'opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
         fontFamily: "'Courier New', monospace"
       }}
     >
@@ -353,6 +391,7 @@ const HUD = ({
       <style jsx>{`
         .game-hud {
           user-select: none;
+          transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .game-hud.minimal {
@@ -363,9 +402,10 @@ const HUD = ({
         .game-hud.compact .hud-fear-meter,
         .game-hud.compact .hud-health-bar {
           transform: scale(0.9);
+          transition: transform 0.3s ease;
         }
 
-        /* Responsive adjustments */
+        /* Enhanced responsive adjustments with smooth scaling */
         @media (max-width: 768px) {
           .game-hud {
             font-size: 12px;
@@ -376,6 +416,7 @@ const HUD = ({
           .hud-health-bar,
           .hud-inventory {
             transform: scale(0.8);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           }
         }
 
@@ -389,30 +430,111 @@ const HUD = ({
           .hud-health-bar,
           .hud-inventory {
             transform: scale(0.7);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           }
         }
 
-        /* Animation for HUD visibility */
+        /* Enhanced animations with smooth transitions */
         .game-hud {
-          transition: opacity 0.3s ease;
+          transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                      filter 0.3s ease;
         }
 
-        /* High fear state styling */
+        /* Enhanced high fear state styling with glitch effects */
         .game-hud[data-high-fear="true"] {
-          filter: brightness(0.9) contrast(1.1);
+          filter: brightness(0.9) contrast(1.1) saturate(1.2);
+          animation: fearGlitch 3s infinite;
         }
 
-        /* Critical health state styling */
+        @keyframes fearGlitch {
+          0%, 90%, 100% {
+            transform: translate(0);
+            filter: brightness(0.9) contrast(1.1) saturate(1.2);
+          }
+          92% {
+            transform: translate(-1px, 1px);
+            filter: brightness(1.1) contrast(1.3) saturate(0.8) hue-rotate(5deg);
+          }
+          94% {
+            transform: translate(1px, -1px);
+            filter: brightness(0.8) contrast(1.4) saturate(1.5) hue-rotate(-3deg);
+          }
+          96% {
+            transform: translate(-1px, -1px);
+            filter: brightness(1.0) contrast(1.2) saturate(1.1) hue-rotate(2deg);
+          }
+        }
+
+        /* Enhanced critical health state styling */
         .game-hud[data-critical-health="true"] {
-          animation: criticalHealthPulse 2s infinite;
+          animation: criticalHealthPulse 1.5s infinite;
         }
 
         @keyframes criticalHealthPulse {
           0%, 100% {
-            filter: brightness(1);
+            filter: brightness(1) saturate(1);
+            border-color: rgba(0, 255, 0, 0.3);
+          }
+          25% {
+            filter: brightness(1.1) saturate(1.2) hue-rotate(10deg);
+            border-color: rgba(255, 100, 100, 0.5);
           }
           50% {
-            filter: brightness(1.1) hue-rotate(10deg);
+            filter: brightness(1.2) saturate(1.4) hue-rotate(15deg);
+            border-color: rgba(255, 50, 50, 0.7);
+          }
+          75% {
+            filter: brightness(1.1) saturate(1.2) hue-rotate(10deg);
+            border-color: rgba(255, 100, 100, 0.5);
+          }
+        }
+
+        /* Smooth component transitions */
+        .hud-timer,
+        .hud-fear-meter,
+        .hud-health-bar,
+        .hud-inventory,
+        .hud-voice-indicator {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Enhanced visual polish */
+        .hud-timer:hover,
+        .hud-fear-meter:hover,
+        .hud-health-bar:hover,
+        .hud-inventory:hover {
+          transform: scale(1.02);
+          filter: brightness(1.1);
+        }
+
+        /* Witching hour special effects */
+        .game-hud[data-witching-hour="true"] {
+          animation: witchingHourEffect 4s infinite;
+        }
+
+        @keyframes witchingHourEffect {
+          0%, 95%, 100% {
+            filter: brightness(1) contrast(1) saturate(1);
+          }
+          97% {
+            filter: brightness(0.7) contrast(1.5) saturate(0.5) hue-rotate(180deg);
+          }
+          98% {
+            filter: brightness(1.3) contrast(0.8) saturate(1.8) hue-rotate(-90deg);
+          }
+        }
+
+        /* Dawn approach relief effect */
+        .game-hud[data-dawn-approaching="true"] {
+          animation: dawnReliefEffect 3s infinite;
+        }
+
+        @keyframes dawnReliefEffect {
+          0%, 100% {
+            filter: brightness(1) saturate(1);
+          }
+          50% {
+            filter: brightness(1.1) saturate(1.2) hue-rotate(-10deg);
           }
         }
       `}</style>

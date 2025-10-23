@@ -16,7 +16,10 @@ export class VoiceNarrator {
   constructor(options = {}) {
     // Voice synthesis configuration
     this.synthesis = typeof window !== 'undefined' ? window.speechSynthesis : null;
-    this.isSupported = !!this.synthesis;
+    this.isSupported = options.forceSupported !== undefined ? options.forceSupported : !!this.synthesis;
+    
+    // Test mode - prevents automatic queue processing
+    this.testMode = options.testMode || false;
     
     // Voice settings optimized for horror atmosphere
     this.voiceSettings = {
@@ -57,7 +60,7 @@ export class VoiceNarrator {
    * Initialize voice selection with preference for suitable voices
    */
   initializeVoice() {
-    if (!this.isSupported) return;
+    if (!this.isSupported || !this.synthesis) return;
 
     const loadVoices = () => {
       const voices = this.synthesis.getVoices();
@@ -284,8 +287,8 @@ export class VoiceNarrator {
       this.narrationQueue.push(narrationItem);
     }
 
-    // Start processing if not already narrating
-    if (!this.isNarrating) {
+    // Start processing if not already narrating (unless in test mode)
+    if (!this.isNarrating && !this.testMode) {
       this.processNarrationQueue();
     }
 

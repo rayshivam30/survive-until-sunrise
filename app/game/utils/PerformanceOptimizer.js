@@ -1,415 +1,522 @@
 /**
- * PerformanceOptimizer - Handles performance monitoring and optimization
- * Implements audio preloading, lazy loading, and performance adjustments
+ * Performance Optimizer - Advanced performance monitoring and optimization
+ * 
+ * Monitors game performance and automatically adjusts settings for optimal experience
+ * Handles frame rate optimization, memory management, and resource allocation
+ * 
+ * Requirements: 9.5, 9.6
  */
 
 export class PerformanceOptimizer {
-  constructor(audioManager = null, gameEngine = null) {
-    this.audioManager = audioManager;
+  constructor(gameEngine, options = {}) {
     this.gameEngine = gameEngine;
-    
-    // Performance monitoring
-    this.performanceMetrics = {
+    this.options = {
+      targetFPS: options.targetFPS || 60,
+      minFPS: options.minFPS || 30,
+      maxMemoryUsage: options.maxMemoryUsage || 100, // MB
+      monitoringInterval: options.monitoringInterval || 1000, // ms
+      adaptiveOptimization: options.adaptiveOptimization !== false,
+      ...options
+    };
+
+    // Performance metrics
+    this.metrics = {
       fps: 60,
       frameTime: 16.67,
+      memoryUsage: 0,
       audioLatency: 0,
       voiceLatency: 0,
-      memoryUsage: 0,
-      lastUpdate: performance.now()
+      updateTime: 0,
+      renderTime: 0
     };
-    
-    // Optimization settings
-    this.optimizationLevel = 'normal'; // 'minimal', 'normal', 'high'
-    this.adaptiveOptimization = true;
-    
-    // Preloading management
-    this.preloadQueue = new Set();
-    this.preloadedAssets = new Set();
-    this.lazyLoadThreshold = 2000; // 2 seconds ahead
-    
-    // Command debouncing
-    this.commandDebounce = {
-      lastCommand: null,
-      lastCommandTime: 0,
-      debounceDelay: 300 // 300ms
-    };
-    
-    // Performance thresholds
-    this.thresholds = {
-      fps: {
-        critical: 20,
-        warning: 30,
-        good: 45
-      },
-      frameTime: {
-        critical: 50,
-        warning: 33,
-        good: 20
-      },
-      memory: {
-        critical: 100 * 1024 * 1024, // 100MB
-        warning: 50 * 1024 * 1024,   // 50MB
-        good: 25 * 1024 * 1024       // 25MB
-      }
-    };
-    
-    // Optimization strategies
-    this.strategies = new Map();
-    this.setupOptimizationStrategies();
-    
-    // Start performance monitoring
-    this.startPerformanceMonitoring();
+
+    // Performance history for trend analysis
+    this.performanceHistory = [];
+    this.maxHistoryLength = 60; // Keep 1 minute of data
+
+    // Optimization state
+    this.currentOptimizationLevel = 0; // 0 = no optimization, 5 = maximum optimization
+    this.optimizationLevels = this.initializeOptimizationLevels();
+
+    // Monitoring state
+    this.isMonitoring = false;
+    this.monitoringInterval = null;
+    this.frameCounter = 0;
+    this.lastFrameTime = performance.now();
+
+    // Callbacks
+    this.onPerformanceChange = options.onPerformanceChange || null;
+    this.onOptimizationApplied = options.onOptimizationApplied || null;
+
+    console.log('PerformanceOptimizer initialized', this.options);
   }
 
   /**
-   * Setup optimization strategies for different performance levels
+   * Initialize optimization levels with specific settings
    */
-  setupOptimizationStrategies() {
-    this.strategies.set('minimal', {
-      audioQuality: 0.3,
-      effectsVolume: 0.2,
-      ambientVolume: 0.2,
-      eventFrequency: 0.5,
-      updateFrequency: 0.5,
-      preloadLimit: 3,
-      enableFrameSkipping: true
-    });
-    
-    this.strategies.set('normal', {
-      audioQuality: 0.7,
-      effectsVolume: 0.7,
-      ambientVolume: 0.8,
-      eventFrequency: 1.0,
-      updateFrequency: 1.0,
-      preloadLimit: 8,
-      enableFrameSkipping: false
-    });
-    
-    this.strategies.set('high', {
-      audioQuality: 1.0,
-      effectsVolume: 1.0,
-      ambientVolume: 1.0,
-      eventFrequency: 1.2,
-      updateFrequency: 1.0,
-      preloadLimit: 15,
-      enableFrameSkipping: false
-    });
+  initializeOptimizationLevels() {
+    return {
+      0: {
+        name: 'Maximum Quality',
+        audioQuality: 1.0,
+        effectsFrequency: 1.0,
+        updateFrequency: 1.0,
+        visualEffects: true,
+        audioMixing: true,
+        voiceProcessing: true
+      },
+      1: {
+        name: 'High Quality',
+        audioQuality: 0.9,
+        effectsFrequency: 0.9,
+        updateFrequency: 1.0,
+        visualEffects: true,
+        audioMixing: true,
+        voiceProcessing: true
+      },
+      2: {
+        name: 'Balanced',
+        audioQuality: 0.8,
+        effectsFrequency: 0.8,
+        updateFrequency: 0.9,
+        visualEffects: true,
+        audioMixing: true,
+        voiceProcessing: true
+      },
+      3: {
+        name: 'Performance',
+        audioQuality: 0.7,
+        effectsFrequency: 0.6,
+        updateFrequency: 0.8,
+        visualEffects: false,
+        audioMixing: true,
+        voiceProcessing: true
+      },
+      4: {
+        name: 'Low Performance',
+        audioQuality: 0.5,
+        effectsFrequency: 0.4,
+        updateFrequency: 0.7,
+        visualEffects: false,
+        audioMixing: false,
+        voiceProcessing: true
+      },
+      5: {
+        name: 'Minimum',
+        audioQuality: 0.3,
+        effectsFrequency: 0.2,
+        updateFrequency: 0.5,
+        visualEffects: false,
+        audioMixing: false,
+        voiceProcessing: false
+      }
+    };
   }
 
   /**
-   * Start performance monitoring loop
+   * Start performance monitoring
    */
-  startPerformanceMonitoring() {
-    const monitor = () => {
-      this.updatePerformanceMetrics();
+  startMonitoring() {
+    if (this.isMonitoring) return;
+
+    this.isMonitoring = true;
+    this.lastFrameTime = performance.now();
+    this.frameCounter = 0;
+
+    // Start monitoring interval
+    this.monitoringInterval = setInterval(() => {
+      this.updateMetrics();
+      this.analyzePerformance();
       
-      if (this.adaptiveOptimization) {
-        this.evaluateAndOptimize();
+      if (this.options.adaptiveOptimization) {
+        this.applyAdaptiveOptimization();
       }
-      
-      // Schedule next monitoring cycle
-      setTimeout(monitor, 1000); // Check every second
-    };
+    }, this.options.monitoringInterval);
+
+    console.log('Performance monitoring started');
+  }
+
+  /**
+   * Stop performance monitoring
+   */
+  stopMonitoring() {
+    if (!this.isMonitoring) return;
+
+    this.isMonitoring = false;
     
-    monitor();
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = null;
+    }
+
+    console.log('Performance monitoring stopped');
   }
 
   /**
    * Update performance metrics
    */
-  updatePerformanceMetrics() {
+  updateMetrics() {
     const now = performance.now();
-    const deltaTime = now - this.performanceMetrics.lastUpdate;
+    const deltaTime = now - this.lastFrameTime;
     
     // Calculate FPS
-    this.performanceMetrics.fps = 1000 / deltaTime;
-    this.performanceMetrics.frameTime = deltaTime;
-    this.performanceMetrics.lastUpdate = now;
-    
+    this.frameCounter++;
+    if (deltaTime >= 1000) { // Update every second
+      this.metrics.fps = Math.round((this.frameCounter * 1000) / deltaTime);
+      this.metrics.frameTime = deltaTime / this.frameCounter;
+      this.frameCounter = 0;
+      this.lastFrameTime = now;
+    }
+
     // Memory usage (if available)
     if (performance.memory) {
-      this.performanceMetrics.memoryUsage = performance.memory.usedJSHeapSize;
+      this.metrics.memoryUsage = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
     }
-    
-    // Audio latency (if audio manager available)
-    if (this.audioManager && this.audioManager.getLatency) {
-      this.performanceMetrics.audioLatency = this.audioManager.getLatency();
-    }
-  }
 
-  /**
-   * Evaluate performance and apply optimizations if needed
-   */
-  evaluateAndOptimize() {
-    const metrics = this.performanceMetrics;
-    let newOptimizationLevel = this.optimizationLevel;
-    
-    // Determine optimization level based on performance
-    if (metrics.fps < this.thresholds.fps.critical || 
-        metrics.frameTime > this.thresholds.frameTime.critical ||
-        metrics.memoryUsage > this.thresholds.memory.critical) {
-      newOptimizationLevel = 'minimal';
-    } else if (metrics.fps < this.thresholds.fps.warning || 
-               metrics.frameTime > this.thresholds.frameTime.warning ||
-               metrics.memoryUsage > this.thresholds.memory.warning) {
-      newOptimizationLevel = 'normal';
-    } else if (metrics.fps > this.thresholds.fps.good && 
-               metrics.frameTime < this.thresholds.frameTime.good &&
-               metrics.memoryUsage < this.thresholds.memory.good) {
-      newOptimizationLevel = 'high';
-    }
-    
-    // Apply optimization if level changed
-    if (newOptimizationLevel !== this.optimizationLevel) {
-      this.applyOptimizationLevel(newOptimizationLevel);
-    }
-  }
-
-  /**
-   * Apply specific optimization level
-   * @param {string} level - Optimization level ('minimal', 'normal', 'high')
-   */
-  applyOptimizationLevel(level) {
-    const strategy = this.strategies.get(level);
-    if (!strategy) return;
-    
-    console.log(`Applying optimization level: ${level}`);
-    
-    // Apply audio optimizations
-    if (this.audioManager) {
-      this.audioManager.adjustVolume('effects', strategy.effectsVolume);
-      this.audioManager.adjustVolume('ambient', strategy.ambientVolume);
-      
-      if (this.audioManager.setQuality) {
-        this.audioManager.setQuality(strategy.audioQuality);
-      }
-    }
-    
-    // Apply game engine optimizations
+    // Game-specific metrics
     if (this.gameEngine) {
-      const eventSystem = this.gameEngine.getEventSystem();
-      if (eventSystem && eventSystem.setEventFrequency) {
-        eventSystem.setEventFrequency(strategy.eventFrequency);
-      }
-      
-      const fearSystem = this.gameEngine.getFearSystem();
-      if (fearSystem && fearSystem.setUpdateFrequency) {
-        fearSystem.setUpdateFrequency(strategy.updateFrequency);
-      }
-      
-      const healthSystem = this.gameEngine.getHealthSystem();
-      if (healthSystem && healthSystem.setUpdateFrequency) {
-        healthSystem.setUpdateFrequency(strategy.updateFrequency);
-      }
-      
-      // Apply game loop optimizations
-      if (this.gameEngine.gameLoop) {
-        if (strategy.enableFrameSkipping) {
-          this.gameEngine.gameLoop.setFrameSkipping(true);
-        }
-        
-        // Adjust target FPS for minimal mode
-        if (level === 'minimal') {
-          this.gameEngine.gameLoop.setTargetFPS(30);
-        } else {
-          this.gameEngine.gameLoop.setTargetFPS(60);
-        }
+      const gameStats = this.gameEngine.getPerformanceStats();
+      if (gameStats) {
+        this.metrics.updateTime = gameStats.gameLoop?.averageUpdateTime || 0;
+        this.metrics.audioLatency = gameStats.systems?.audioLatency || 0;
+        this.metrics.voiceLatency = gameStats.systems?.voiceLatency || 0;
       }
     }
-    
-    this.optimizationLevel = level;
+
+    // Add to history
+    this.performanceHistory.push({
+      timestamp: now,
+      ...this.metrics
+    });
+
+    // Trim history
+    if (this.performanceHistory.length > this.maxHistoryLength) {
+      this.performanceHistory.shift();
+    }
   }
 
   /**
-   * Preload audio assets based on game state and upcoming events
-   * @param {Array} soundKeys - Array of sound keys to preload
-   * @returns {Promise<void>}
+   * Analyze performance trends and issues
    */
-  async preloadAudioAssets(soundKeys = []) {
-    if (!this.audioManager) return;
-    
-    const strategy = this.strategies.get(this.optimizationLevel);
-    const preloadLimit = strategy.preloadLimit;
-    
-    // Filter out already preloaded assets
-    const toPreload = soundKeys
-      .filter(key => !this.preloadedAssets.has(key))
-      .slice(0, preloadLimit);
-    
-    if (toPreload.length === 0) return;
-    
-    console.log(`Preloading ${toPreload.length} audio assets:`, toPreload);
-    
-    try {
-      await this.audioManager.preloadSounds(toPreload);
+  analyzePerformance() {
+    const issues = [];
+    const recommendations = [];
+
+    // FPS analysis
+    if (this.metrics.fps < this.options.minFPS) {
+      issues.push({
+        type: 'low_fps',
+        severity: 'high',
+        value: this.metrics.fps,
+        threshold: this.options.minFPS
+      });
+      recommendations.push('Reduce visual effects and audio quality');
+    } else if (this.metrics.fps < this.options.targetFPS * 0.8) {
+      issues.push({
+        type: 'suboptimal_fps',
+        severity: 'medium',
+        value: this.metrics.fps,
+        threshold: this.options.targetFPS
+      });
+      recommendations.push('Consider reducing some effects');
+    }
+
+    // Memory analysis
+    if (this.metrics.memoryUsage > this.options.maxMemoryUsage) {
+      issues.push({
+        type: 'high_memory',
+        severity: 'high',
+        value: this.metrics.memoryUsage,
+        threshold: this.options.maxMemoryUsage
+      });
+      recommendations.push('Reduce audio caching and effect frequency');
+    }
+
+    // Frame time consistency
+    if (this.performanceHistory.length >= 10) {
+      const recentFrameTimes = this.performanceHistory.slice(-10).map(h => h.frameTime);
+      const variance = this.calculateVariance(recentFrameTimes);
       
-      // Mark as preloaded
-      toPreload.forEach(key => this.preloadedAssets.add(key));
-      
-    } catch (error) {
-      console.warn('Error preloading audio assets:', error);
+      if (variance > 50) { // High frame time variance
+        issues.push({
+          type: 'frame_time_variance',
+          severity: 'medium',
+          value: variance,
+          threshold: 50
+        });
+        recommendations.push('Optimize update frequency and reduce background processing');
+      }
+    }
+
+    // Update performance state
+    this.currentPerformanceIssues = issues;
+    this.currentRecommendations = recommendations;
+
+    // Notify callback
+    if (this.onPerformanceChange && issues.length > 0) {
+      this.onPerformanceChange({
+        metrics: this.metrics,
+        issues: issues,
+        recommendations: recommendations
+      });
     }
   }
 
   /**
-   * Lazy load audio assets based on upcoming game events
-   * @param {Object} gameState - Current game state
+   * Apply adaptive optimization based on performance analysis
    */
-  async lazyLoadAudioAssets(gameState) {
-    if (!this.audioManager || !gameState) return;
+  applyAdaptiveOptimization() {
+    if (!this.currentPerformanceIssues || this.currentPerformanceIssues.length === 0) {
+      // Performance is good, consider reducing optimization level
+      if (this.currentOptimizationLevel > 0 && this.metrics.fps > this.options.targetFPS * 0.9) {
+        this.setOptimizationLevel(Math.max(0, this.currentOptimizationLevel - 1));
+      }
+      return;
+    }
+
+    // Determine required optimization level
+    let requiredLevel = this.currentOptimizationLevel;
     
-    const upcomingAssets = this.predictUpcomingAssets(gameState);
-    
-    if (upcomingAssets.length > 0) {
-      await this.preloadAudioAssets(upcomingAssets);
+    for (const issue of this.currentPerformanceIssues) {
+      switch (issue.type) {
+        case 'low_fps':
+          if (issue.severity === 'high') {
+            requiredLevel = Math.max(requiredLevel, 4);
+          } else {
+            requiredLevel = Math.max(requiredLevel, 2);
+          }
+          break;
+        case 'high_memory':
+          requiredLevel = Math.max(requiredLevel, 3);
+          break;
+        case 'frame_time_variance':
+          requiredLevel = Math.max(requiredLevel, 2);
+          break;
+      }
+    }
+
+    // Apply optimization if needed
+    if (requiredLevel > this.currentOptimizationLevel) {
+      this.setOptimizationLevel(requiredLevel);
     }
   }
 
   /**
-   * Predict which audio assets will be needed soon
-   * @param {Object} gameState - Current game state
-   * @returns {Array} - Array of predicted asset keys
-   */
-  predictUpcomingAssets(gameState) {
-    const assets = [];
-    
-    // Predict based on fear level
-    if (gameState.fearLevel > 70) {
-      assets.push('jump_scare', 'heartbeat', 'breathing_heavy');
-    } else if (gameState.fearLevel > 40) {
-      assets.push('whisper', 'footsteps', 'door_creak');
-    }
-    
-    // Predict based on time of night
-    const currentHour = parseInt(gameState.currentTime?.split(':')[0] || '0');
-    switch (currentHour) {
-      case 0:
-        assets.push('clock_chime', 'wind_howl');
-        break;
-      case 1:
-      case 2:
-        assets.push('whisper', 'footsteps');
-        break;
-      case 3:
-        assets.push('supernatural', 'ghost_moan');
-        break;
-      case 4:
-      case 5:
-        assets.push('bird_distant', 'wind_calm');
-        break;
-    }
-    
-    // Predict based on health level
-    if (gameState.health < 30) {
-      assets.push('heartbeat', 'breathing_labored');
-    }
-    
-    return [...new Set(assets)]; // Remove duplicates
-  }
-
-  /**
-   * Debounce voice commands to prevent rapid-fire processing
-   * @param {string} command - Voice command
-   * @returns {boolean} - Whether command should be processed
-   */
-  debounceVoiceCommand(command) {
-    const now = performance.now();
-    const timeSinceLastCommand = now - this.commandDebounce.lastCommandTime;
-    
-    // Allow command if enough time has passed or it's different from last command
-    if (timeSinceLastCommand >= this.commandDebounce.debounceDelay || 
-        command !== this.commandDebounce.lastCommand) {
-      
-      this.commandDebounce.lastCommand = command;
-      this.commandDebounce.lastCommandTime = now;
-      return true;
-    }
-    
-    return false;
-  }
-
-  /**
-   * Get current performance metrics
-   * @returns {Object} - Performance metrics
-   */
-  getPerformanceMetrics() {
-    return { ...this.performanceMetrics };
-  }
-
-  /**
-   * Get optimization status
-   * @returns {Object} - Optimization status
-   */
-  getOptimizationStatus() {
-    return {
-      level: this.optimizationLevel,
-      adaptiveOptimization: this.adaptiveOptimization,
-      preloadedAssets: this.preloadedAssets.size,
-      metrics: this.getPerformanceMetrics(),
-      thresholds: this.thresholds
-    };
-  }
-
-  /**
-   * Force specific optimization level
-   * @param {string} level - Optimization level
+   * Set optimization level and apply settings
    */
   setOptimizationLevel(level) {
-    if (this.strategies.has(level)) {
-      this.applyOptimizationLevel(level);
+    level = Math.max(0, Math.min(5, level));
+    
+    if (level === this.currentOptimizationLevel) return;
+
+    const previousLevel = this.currentOptimizationLevel;
+    this.currentOptimizationLevel = level;
+    
+    const settings = this.optimizationLevels[level];
+    
+    console.log(`Applying optimization level ${level}: ${settings.name}`);
+    
+    // Apply audio optimizations
+    if (this.gameEngine.audioManager) {
+      this.applyAudioOptimizations(settings);
+    }
+
+    // Apply game loop optimizations
+    if (this.gameEngine.gameLoop) {
+      this.applyGameLoopOptimizations(settings);
+    }
+
+    // Apply system optimizations
+    this.applySystemOptimizations(settings);
+
+    // Notify callback
+    if (this.onOptimizationApplied) {
+      this.onOptimizationApplied({
+        previousLevel,
+        currentLevel: level,
+        settings,
+        reason: this.currentPerformanceIssues
+      });
     }
   }
 
   /**
-   * Enable or disable adaptive optimization
-   * @param {boolean} enabled - Whether to enable adaptive optimization
+   * Apply audio-specific optimizations
    */
-  setAdaptiveOptimization(enabled) {
-    this.adaptiveOptimization = enabled;
+  applyAudioOptimizations(settings) {
+    const audioManager = this.gameEngine.audioManager;
+    
+    // Adjust audio quality
+    audioManager.adjustVolume('effects', 
+      audioManager.getVolume('effects') * settings.audioQuality);
+    
+    // Reduce effects frequency
+    if (this.gameEngine.eventSystem) {
+      this.gameEngine.eventSystem.setEventFrequency(settings.effectsFrequency);
+    }
+
+    // Disable audio mixing if needed
+    if (!settings.audioMixing && audioManager.disableMixing) {
+      audioManager.disableMixing();
+    }
   }
 
   /**
-   * Set command debounce delay
-   * @param {number} delay - Debounce delay in milliseconds
+   * Apply game loop optimizations
    */
-  setCommandDebounceDelay(delay) {
-    this.commandDebounce.debounceDelay = Math.max(100, delay);
+  applyGameLoopOptimizations(settings) {
+    const gameLoop = this.gameEngine.gameLoop;
+    
+    // Adjust update frequency
+    if (gameLoop.setUpdateFrequency) {
+      gameLoop.setUpdateFrequency(settings.updateFrequency);
+    }
+
+    // Adjust target FPS if performance is poor
+    if (settings.updateFrequency < 0.8) {
+      gameLoop.setTargetFPS(Math.max(30, this.options.targetFPS * settings.updateFrequency));
+    }
   }
 
   /**
-   * Clear preloaded assets to free memory
+   * Apply system-wide optimizations
    */
-  clearPreloadedAssets() {
-    this.preloadedAssets.clear();
-    console.log('Cleared preloaded assets cache');
+  applySystemOptimizations(settings) {
+    // Disable visual effects if needed
+    if (!settings.visualEffects) {
+      document.body.classList.add('reduced-effects');
+    } else {
+      document.body.classList.remove('reduced-effects');
+    }
+
+    // Reduce voice processing if needed
+    if (!settings.voiceProcessing && this.gameEngine.voiceNarrator) {
+      this.gameEngine.voiceNarrator.setProcessingLevel('minimal');
+    }
+
+    // Apply CSS optimizations
+    this.applyCSSOptimizations(settings);
   }
 
   /**
-   * Get memory usage estimate
-   * @returns {Object} - Memory usage information
+   * Apply CSS-based performance optimizations
    */
-  getMemoryUsage() {
-    const usage = {
-      preloadedAssets: this.preloadedAssets.size,
-      estimatedAudioMemory: this.preloadedAssets.size * 1024 * 1024, // Rough estimate
-      jsHeapSize: 0,
-      jsHeapSizeLimit: 0
+  applyCSSOptimizations(settings) {
+    const style = document.createElement('style');
+    style.id = 'performance-optimizations';
+    
+    // Remove existing optimization styles
+    const existing = document.getElementById('performance-optimizations');
+    if (existing) {
+      existing.remove();
+    }
+
+    let css = '';
+
+    if (!settings.visualEffects) {
+      css += `
+        .game-hud * {
+          animation: none !important;
+          transition: none !important;
+        }
+        .status-bar-fill::after {
+          display: none;
+        }
+      `;
+    }
+
+    if (settings.updateFrequency < 0.8) {
+      css += `
+        .game-hud {
+          will-change: auto;
+        }
+      `;
+    }
+
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  /**
+   * Calculate variance for array of numbers
+   */
+  calculateVariance(numbers) {
+    if (numbers.length === 0) return 0;
+    
+    const mean = numbers.reduce((sum, num) => sum + num, 0) / numbers.length;
+    const squaredDiffs = numbers.map(num => Math.pow(num - mean, 2));
+    return squaredDiffs.reduce((sum, diff) => sum + diff, 0) / numbers.length;
+  }
+
+  /**
+   * Get current performance report
+   */
+  getPerformanceReport() {
+    return {
+      metrics: { ...this.metrics },
+      optimizationLevel: this.currentOptimizationLevel,
+      optimizationSettings: this.optimizationLevels[this.currentOptimizationLevel],
+      issues: this.currentPerformanceIssues || [],
+      recommendations: this.currentRecommendations || [],
+      history: this.performanceHistory.slice(-10) // Last 10 entries
     };
-    
-    if (performance.memory) {
-      usage.jsHeapSize = performance.memory.usedJSHeapSize;
-      usage.jsHeapSizeLimit = performance.memory.jsHeapSizeLimit;
-    }
-    
-    return usage;
   }
 
   /**
-   * Cleanup resources
+   * Force optimization level (manual override)
+   */
+  forceOptimizationLevel(level) {
+    this.options.adaptiveOptimization = false;
+    this.setOptimizationLevel(level);
+  }
+
+  /**
+   * Reset to adaptive optimization
+   */
+  enableAdaptiveOptimization() {
+    this.options.adaptiveOptimization = true;
+  }
+
+  /**
+   * Get optimization recommendations
+   */
+  getOptimizationRecommendations() {
+    const recommendations = [];
+    
+    if (this.metrics.fps < this.options.targetFPS * 0.8) {
+      recommendations.push({
+        type: 'fps',
+        message: 'Consider reducing visual effects for better frame rate',
+        action: () => this.setOptimizationLevel(Math.min(5, this.currentOptimizationLevel + 1))
+      });
+    }
+
+    if (this.metrics.memoryUsage > this.options.maxMemoryUsage * 0.8) {
+      recommendations.push({
+        type: 'memory',
+        message: 'High memory usage detected, consider reducing audio caching',
+        action: () => this.gameEngine.audioManager?.clearCache?.()
+      });
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Cleanup and destroy optimizer
    */
   destroy() {
-    this.clearPreloadedAssets();
-    this.preloadQueue.clear();
+    this.stopMonitoring();
+    
+    // Remove CSS optimizations
+    const existing = document.getElementById('performance-optimizations');
+    if (existing) {
+      existing.remove();
+    }
+
+    // Reset optimization level
+    this.setOptimizationLevel(0);
+    
     console.log('PerformanceOptimizer destroyed');
   }
 }
