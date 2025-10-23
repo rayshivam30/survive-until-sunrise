@@ -762,6 +762,22 @@ export class InventorySystem {
   }
 
   /**
+   * Check if inventory system is active
+   * @returns {boolean} True if system is active
+   */
+  isActive() {
+    return this.gameState && this.gameState.isAlive;
+  }
+
+  /**
+   * Get inventory system statistics
+   * @returns {Object} System statistics
+   */
+  getStats() {
+    return this.getInventoryStats();
+  }
+
+  /**
    * Initialize starting inventory based on game settings
    */
   initializeStartingInventory() {

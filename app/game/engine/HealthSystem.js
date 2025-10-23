@@ -471,6 +471,39 @@ export class HealthSystem {
   }
 
   /**
+   * Set update frequency for performance optimization
+   * @param {number} frequency - Update frequency multiplier (0.5 = half speed, 1.0 = normal)
+   */
+  setUpdateFrequency(frequency) {
+    this.updateFrequency = Math.max(0.1, Math.min(2.0, frequency));
+    console.log(`HealthSystem update frequency set to: ${this.updateFrequency}`);
+  }
+
+  /**
+   * Check if health system is active
+   * @returns {boolean} True if system is active
+   */
+  isActive() {
+    return this.gameState && this.gameState.isAlive;
+  }
+
+  /**
+   * Get health system statistics
+   * @returns {Object} System statistics
+   */
+  getStats() {
+    return {
+      currentHealth: this.gameState.health,
+      currentHealthState: this.currentHealthState,
+      isRegenerating: this.isRegenerating,
+      activeDamageEvents: this.damageEvents.size,
+      activeHealthModifiers: this.healthModifiers.size,
+      updateFrequency: this.updateFrequency || 1.0,
+      timeUntilRegen: this.getTimeUntilRegen()
+    };
+  }
+
+  /**
    * Reset health system to initial state
    */
   reset() {
@@ -479,6 +512,7 @@ export class HealthSystem {
     this.currentHealthState = 'excellent';
     this.isRegenerating = false;
     this.lastDamageTime = 0;
+    this.updateFrequency = 1.0;
     console.log('HealthSystem reset');
   }
 }

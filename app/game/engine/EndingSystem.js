@@ -608,6 +608,27 @@ export class EndingSystem {
   }
 
   /**
+   * Check if ending system is active
+   * @returns {boolean} True if system is active
+   */
+  isActive() {
+    return this.gameState && this.gameState.gameStarted;
+  }
+
+  /**
+   * Get ending system statistics
+   * @returns {Object} System statistics
+   */
+  getStats() {
+    return {
+      currentEnding: this.currentEnding?.id || null,
+      totalAchievements: Object.keys(this.endingAchievements).length,
+      achievementSummary: this.getAchievementSummary(),
+      shouldTriggerEnding: this.shouldTriggerEnding()
+    };
+  }
+
+  /**
    * Reset all achievements (for testing or fresh start)
    */
   resetAchievements() {

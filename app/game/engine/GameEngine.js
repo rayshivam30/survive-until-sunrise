@@ -10,6 +10,7 @@ import { HealthSystem } from './HealthSystem.js';
 import { InventorySystem } from './InventorySystem.js';
 import { EndingSystem } from './EndingSystem.js';
 import EventSystem from './EventSystem.js';
+import GameLoop from './GameLoop.js';
 
 export class GameEngine {
   constructor(audioManager = null, voiceController = null, voiceNarrator = null) {
@@ -20,10 +21,22 @@ export class GameEngine {
     this.inventorySystem = new InventorySystem(this.gameState, audioManager, voiceNarrator);
     this.endingSystem = new EndingSystem(this.gameState, audioManager, voiceNarrator);
     this.eventSystem = new EventSystem(this.gameState, audioManager, voiceController);
+    
+    // Game loop management
+    this.gameLoop = new GameLoop(this, {
+      targetFPS: 60,
+      enablePerformanceMonitoring: true,
+      logPerformance: false
+    });
+    
     this.isRunning = false;
-    this.lastUpdateTime = 0;
     this.updateCallbacks = new Set();
     this.commandHandlers = new Map();
+    
+    // External system references
+    this.audioManager = audioManager;
+    this.voiceController = voiceController;
+    this.voiceNarrator = voiceNarrator;
     
     // Set up timer event handlers
     this.setupTimerEvents();
@@ -31,11 +44,16 @@ export class GameEngine {
     // Set up system integrations
     this.setupSystemIntegrations();
     
+    // Set up game loop callbacks
+    this.setupGameLoopCallbacks();
+    
     // Bind methods to preserve context
     this.update = this.update.bind(this);
     this.handleCommand = this.handleCommand.bind(this);
     this.start = this.start.bind(this);
     this.stop = this.stop.bind(this);
+    this.handleError = this.handleError.bind(this);
+    this.handlePerformanceIssue = this.handlePerformanceIssue.bind(this);
   }
 
   /**
@@ -51,12 +69,10 @@ export class GameEngine {
     // Initialize starting inventory
     this.inventorySystem.initializeStartingInventory();
     
-    this.lastUpdateTime = performance.now();
+    // Start the advanced game loop
+    this.gameLoop.start();
     
-    // Start the game loop
-    this.gameLoop();
-    
-    console.log('GameEngine started');
+    console.log('GameEngine started with advanced game loop');
   }
 
   /**
@@ -66,24 +82,33 @@ export class GameEngine {
     this.isRunning = false;
     this.gameState.endGame();
     this.gameTimer.stop();
+    
+    // Stop the game loop
+    this.gameLoop.stop();
+    
     console.log('GameEngine stopped');
   }
 
   /**
-   * Main game loop - runs continuously while game is active
+   * Pause the game engine
    */
-  gameLoop() {
+  pause() {
     if (!this.isRunning) return;
+    
+    this.gameLoop.pause();
+    this.gameTimer.pause();
+    console.log('GameEngine paused');
+  }
 
-    const currentTime = performance.now();
-    const deltaTime = currentTime - this.lastUpdateTime;
-    this.lastUpdateTime = currentTime;
-
-    // Update game state
-    this.update(deltaTime);
-
-    // Continue the loop
-    requestAnimationFrame(() => this.gameLoop());
+  /**
+   * Resume the game engine
+   */
+  resume() {
+    if (!this.isRunning) return;
+    
+    this.gameLoop.resume();
+    this.gameTimer.resume();
+    console.log('GameEngine resumed');
   }
 
   /**
@@ -404,6 +429,38 @@ export class GameEngine {
   }
 
   /**
+   * Set up game loop callbacks
+   */
+  setupGameLoopCallbacks() {
+    // Register update callback with the game loop
+    this.gameLoop.onUpdate((deltaTime, performanceStats) => {
+      // This will call our update method
+      // The game loop handles the timing and performance monitoring
+    });
+
+    // Register performance monitoring callback
+    this.gameLoop.onPostUpdate((deltaTime, performanceStats) => {
+      // Check for performance issues and adjust game settings if needed
+      if (performanceStats.fps < 30) {
+        this.handlePerformanceIssue({
+          fps: performanceStats.fps,
+          frameTime: performanceStats.averageFrameTime,
+          suggestion: 'reduce_effects'
+        });
+      }
+    });
+
+    // Register event processing
+    this.gameLoop.registerEventProcessor('game-event', (event) => {
+      this.triggerEvent(event.data);
+    });
+
+    this.gameLoop.registerEventProcessor('command', (event) => {
+      this.handleCommand(event.data.command);
+    });
+  }
+
+  /**
    * Set up integrations between different systems
    */
   setupSystemIntegrations() {
@@ -517,5 +574,197 @@ export class GameEngine {
         this.fearSystem.addFearModifier('dawn_hope', 0.5, 60000); // 1 minute of reduced fear
         break;
     }
+  }
+
+  /**
+   * Handle errors with appropriate recovery strategies
+   * @param {string} errorType - Type of error
+   * @param {Error} error - Error object
+   * @param {Object} context - Additional context
+   */
+  handleError(errorType, error, context = {}) {
+    console.error(`GameEngine ${errorType} error:`, error, context);
+
+    // Implement error recovery strategies
+    switch (errorType) {
+      case 'game-loop':
+        // Try to continue running but log the error
+        console.warn('Game loop error, attempting to continue...');
+        break;
+      
+      case 'audio':
+        // Disable audio features if they're causing issues
+        if (this.audioManager) {
+          console.warn('Audio error detected, reducing audio functionality');
+          // Could implement audio fallback here
+        }
+        break;
+      
+      case 'voice':
+        // Disable voice features if they're causing issues
+        if (this.voiceNarrator) {
+          console.warn('Voice error detected, reducing voice functionality');
+          this.voiceNarrator.clearQueue();
+        }
+        break;
+      
+      case 'state':
+        // Try to recover game state
+        console.warn('Game state error, attempting recovery...');
+        try {
+          this.gameState.validateState();
+        } catch (validationError) {
+          console.error('Game state validation failed:', validationError);
+          // Could trigger a game restart here
+        }
+        break;
+      
+      default:
+        console.warn(`Unhandled error type: ${errorType}`);
+    }
+
+    // Notify update callbacks about the error
+    this.updateCallbacks.forEach(callback => {
+      try {
+        if (callback.onError) {
+          callback.onError(errorType, error, context);
+        }
+      } catch (callbackError) {
+        console.error('Error in error callback:', callbackError);
+      }
+    });
+  }
+
+  /**
+   * Handle performance issues by adjusting game settings
+   * @param {Object} performanceData - Performance issue data
+   */
+  handlePerformanceIssue(performanceData) {
+    console.warn('Performance issue detected:', performanceData);
+
+    const { fps, frameTime, suggestion } = performanceData;
+
+    // Implement performance optimizations based on the issue
+    switch (suggestion) {
+      case 'reduce_effects':
+        // Reduce audio effects frequency
+        if (this.audioManager) {
+          this.audioManager.adjustVolume('effects', 0.5);
+        }
+        
+        // Reduce event frequency
+        if (this.eventSystem) {
+          this.eventSystem.setEventFrequency(0.7); // Reduce by 30%
+        }
+        break;
+      
+      case 'reduce_quality':
+        // Reduce game loop target FPS
+        this.gameLoop.setTargetFPS(30);
+        
+        // Reduce update frequency for non-critical systems
+        this.fearSystem.setUpdateFrequency(0.5);
+        this.healthSystem.setUpdateFrequency(0.5);
+        break;
+      
+      case 'minimal_mode':
+        // Switch to minimal performance mode
+        if (this.audioManager) {
+          this.audioManager.adjustVolume('ambient', 0.3);
+          this.audioManager.adjustVolume('effects', 0.3);
+        }
+        
+        // Disable non-essential features
+        this.gameLoop.setFrameSkipping(true);
+        break;
+    }
+
+    // Notify callbacks about performance adjustments
+    this.updateCallbacks.forEach(callback => {
+      try {
+        if (callback.onPerformanceIssue) {
+          callback.onPerformanceIssue(performanceData);
+        }
+      } catch (error) {
+        console.error('Error in performance issue callback:', error);
+      }
+    });
+  }
+
+  /**
+   * Queue an event for processing in the game loop
+   * @param {Object} eventData - Event data to queue
+   */
+  queueEvent(eventData) {
+    this.gameLoop.queueEvent({
+      type: 'game-event',
+      data: eventData,
+      timestamp: performance.now()
+    });
+  }
+
+  /**
+   * Queue a command for processing in the game loop
+   * @param {string} command - Command to queue
+   */
+  queueCommand(command) {
+    this.gameLoop.queueEvent({
+      type: 'command',
+      data: { command },
+      timestamp: performance.now()
+    });
+  }
+
+  /**
+   * Get game engine performance statistics
+   * @returns {Object} Performance statistics
+   */
+  getPerformanceStats() {
+    return {
+      gameLoop: this.gameLoop.getPerformanceStats(),
+      gameState: {
+        updateCount: this.gameState.updateCount || 0,
+        eventCount: this.gameState.eventsTriggered?.length || 0,
+        commandCount: this.gameState.commandsIssued?.length || 0
+      },
+      systems: {
+        fearSystem: this.fearSystem.getStats?.() || {},
+        healthSystem: this.healthSystem.getStats?.() || {},
+        eventSystem: this.eventSystem.getStats?.() || {},
+        inventorySystem: this.inventorySystem.getStats?.() || {}
+      }
+    };
+  }
+
+  /**
+   * Check if game is active and can process updates
+   * @returns {boolean} True if game is active
+   */
+  isGameActive() {
+    return this.isRunning && this.gameState.gameStarted && this.gameState.isAlive;
+  }
+
+  /**
+   * Get comprehensive game status
+   * @returns {Object} Game status information
+   */
+  getGameStatus() {
+    return {
+      isRunning: this.isRunning,
+      isActive: this.isGameActive(),
+      gameLoop: this.gameLoop.getStatus(),
+      gameState: this.gameState.serialize(),
+      performance: this.getPerformanceStats(),
+      systems: {
+        audio: !!this.audioManager && this.audioManager.isInitialized,
+        voice: !!this.voiceNarrator && this.voiceNarrator.isSupported,
+        timer: this.gameTimer.isRunning(),
+        fear: this.fearSystem.isActive(),
+        health: this.healthSystem.isActive(),
+        inventory: this.inventorySystem.isActive(),
+        events: this.eventSystem.isActive(),
+        endings: this.endingSystem.isActive()
+      }
+    };
   }
 }

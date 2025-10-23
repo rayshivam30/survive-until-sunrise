@@ -7,6 +7,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { GameEngine } from '../engine/GameEngine.js';
+import { GameInitializer } from '../engine/GameInitializer.js';
 
 // Create the context
 const GameContext = createContext(null);
@@ -29,32 +30,73 @@ export const useGame = () => {
  * @param {React.ReactNode} props.children - Child components
  */
 export const GameProvider = ({ children }) => {
-  // Game engine instance (persistent across re-renders)
+  // Game initializer instance (persistent across re-renders)
+  const gameInitializerRef = useRef(null);
   const gameEngineRef = useRef(null);
   
   // Game state that triggers re-renders
   const [gameState, setGameState] = useState(null);
   const [isEngineReady, setIsEngineReady] = useState(false);
+  const [initializationProgress, setInitializationProgress] = useState(null);
+  const [initializationError, setInitializationError] = useState(null);
 
-  // Initialize game engine
+  // Initialize game systems
   useEffect(() => {
-    if (!gameEngineRef.current) {
-      gameEngineRef.current = new GameEngine();
-      
-      // Subscribe to game state updates
-      const unsubscribe = gameEngineRef.current.onUpdate((deltaTime, currentGameState) => {
-        // Update React state to trigger re-renders
-        setGameState({ ...currentGameState.serialize() });
+    if (!gameInitializerRef.current) {
+      gameInitializerRef.current = new GameInitializer({
+        enableAudio: true,
+        enableVoice: true,
+        enableCheckpoints: true,
+        autoStart: false,
+        showCompatibilityWarnings: true,
+        requestPermissions: true,
+        
+        // Initialization callbacks
+        onInitializationProgress: (progress) => {
+          setInitializationProgress(progress);
+        },
+        
+        onInitializationComplete: (result) => {
+          console.log('Game initialization completed:', result);
+          setInitializationProgress(null);
+          setIsEngineReady(true);
+        },
+        
+        onInitializationError: (error) => {
+          console.error('Game initialization failed:', error);
+          setInitializationError(error);
+          setInitializationProgress(null);
+        },
+        
+        onGameReady: (systems) => {
+          gameEngineRef.current = systems.gameEngine;
+          
+          // Subscribe to game state updates
+          const unsubscribe = systems.gameEngine.onUpdate((deltaTime, currentGameState) => {
+            // Update React state to trigger re-renders
+            setGameState({ ...currentGameState.serialize() });
+          });
+
+          console.log('Game systems ready and connected');
+          
+          // Store unsubscribe function for cleanup
+          gameInitializerRef.current.unsubscribeGameUpdates = unsubscribe;
+        }
       });
 
-      setIsEngineReady(true);
-      console.log('GameEngine initialized and ready');
+      // Start initialization
+      gameInitializerRef.current.initialize().catch(error => {
+        console.error('Failed to initialize game:', error);
+        setInitializationError({ error: error.message, step: 'initialization' });
+      });
 
       // Cleanup on unmount
       return () => {
-        unsubscribe();
-        if (gameEngineRef.current) {
-          gameEngineRef.current.stop();
+        if (gameInitializerRef.current) {
+          if (gameInitializerRef.current.unsubscribeGameUpdates) {
+            gameInitializerRef.current.unsubscribeGameUpdates();
+          }
+          gameInitializerRef.current.destroy();
         }
       };
     }
@@ -71,7 +113,9 @@ export const GameProvider = ({ children }) => {
    * Start the game
    */
   const startGame = useCallback(() => {
-    if (gameEngineRef.current) {
+    if (gameInitializerRef.current && gameInitializerRef.current.isInitialized) {
+      gameInitializerRef.current.startGame();
+    } else if (gameEngineRef.current) {
       gameEngineRef.current.start();
     }
   }, []);
@@ -89,7 +133,9 @@ export const GameProvider = ({ children }) => {
    * Reset the game to initial state
    */
   const resetGame = useCallback(() => {
-    if (gameEngineRef.current) {
+    if (gameInitializerRef.current && gameInitializerRef.current.isInitialized) {
+      gameInitializerRef.current.restartGame();
+    } else if (gameEngineRef.current) {
       gameEngineRef.current.reset();
       setGameState({ ...gameEngineRef.current.getGameState().serialize() });
     }
@@ -258,9 +304,12 @@ export const GameProvider = ({ children }) => {
     // Game state (read-only)
     gameState,
     isEngineReady,
+    initializationProgress,
+    initializationError,
     
     // Game engine reference (for advanced usage)
     gameEngine: gameEngineRef.current,
+    gameInitializer: gameInitializerRef.current,
     
     // Game control actions
     startGame,

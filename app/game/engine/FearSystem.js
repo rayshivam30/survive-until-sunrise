@@ -425,6 +425,37 @@ export class FearSystem {
   }
 
   /**
+   * Set update frequency for performance optimization
+   * @param {number} frequency - Update frequency multiplier (0.5 = half speed, 1.0 = normal)
+   */
+  setUpdateFrequency(frequency) {
+    this.updateFrequency = Math.max(0.1, Math.min(2.0, frequency));
+    console.log(`FearSystem update frequency set to: ${this.updateFrequency}`);
+  }
+
+  /**
+   * Check if fear system is active
+   * @returns {boolean} True if system is active
+   */
+  isActive() {
+    return this.gameState && this.gameState.isAlive;
+  }
+
+  /**
+   * Get fear system statistics
+   * @returns {Object} System statistics
+   */
+  getStats() {
+    return {
+      currentFearLevel: this.gameState.fearLevel,
+      currentFearState: this.currentFearState,
+      activeFearEvents: this.fearEvents.size,
+      activeFearModifiers: this.fearModifiers.size,
+      updateFrequency: this.updateFrequency || 1.0
+    };
+  }
+
+  /**
    * Reset fear system to initial state
    */
   reset() {
@@ -432,6 +463,7 @@ export class FearSystem {
     this.fearModifiers.clear();
     this.currentFearState = 'calm';
     this.lastFearLevel = 0;
+    this.updateFrequency = 1.0;
     console.log('FearSystem reset');
   }
 }

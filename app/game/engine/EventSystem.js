@@ -512,14 +512,48 @@ class EventSystem {
   }
 
   /**
+   * Set event frequency for performance optimization
+   * @param {number} frequency - Event frequency multiplier (0.5 = half frequency, 1.0 = normal)
+   */
+  setEventFrequency(frequency) {
+    this.eventFrequency = Math.max(0.1, Math.min(2.0, frequency));
+    console.log(`EventSystem event frequency set to: ${this.eventFrequency}`);
+  }
+
+  /**
+   * Check if event system is active
+   * @returns {boolean} True if system is active
+   */
+  isActive() {
+    return this.gameState && this.gameState.isAlive;
+  }
+
+  /**
+   * Get event system statistics
+   * @returns {Object} System statistics
+   */
+  getStats() {
+    return {
+      totalEventsTriggered: this.eventHistory.length,
+      activeEvents: this.eventQueue.filter(e => e.awaitingResponse && !e.processed).length,
+      queuedEvents: this.eventQueue.length,
+      eventFrequency: this.eventFrequency || 1.0,
+      lastEventTime: this.lastEventTime
+    };
+  }
+
+  /**
    * Update event system (called from game loop)
    */
   update() {
     // Handle event timeouts
     this.handleEventTimeouts();
 
-    // Randomly generate new events
-    if (Math.random() < 0.1) { // 10% chance per update cycle
+    // Randomly generate new events with frequency adjustment
+    const baseChance = 0.1; // 10% base chance per update cycle
+    const adjustedChance = baseChance * (this.eventFrequency || 1.0);
+    
+    if (Math.random() < adjustedChance) {
       const newEvent = this.generateRandomEvent();
       if (newEvent) {
         this.processEvent(newEvent);
