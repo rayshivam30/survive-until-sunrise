@@ -396,7 +396,7 @@ class AudioManager {
   }
 
   /**
-   * Dynamically adjust audio based on game state
+   * Dynamically adjust audio based on game state with optimized horror atmosphere
    * @param {Object} gameState - Current game state
    */
   updateAudioForGameState(gameState) {
@@ -404,54 +404,248 @@ class AudioManager {
 
     const { fearLevel, health, currentTime, location } = gameState;
 
-    // Adjust ambient volume based on fear level
-    const fearMultiplier = 0.5 + (fearLevel / 100) * 0.5; // 0.5 to 1.0
+    // Enhanced fear-based audio mixing for optimal horror atmosphere
+    const fearMultiplier = this.calculateOptimalFearMultiplier(fearLevel);
     this.adjustVolume('ambient', this.volumes.ambient * fearMultiplier);
 
-    // Play heartbeat when fear is high
-    if (fearLevel > 70 && !this.effectSounds.get('heartbeat')?.playing()) {
-      this.playEffect('heartbeat', { volume: (fearLevel - 70) / 30 * 0.8, loop: true });
-    } else if (fearLevel <= 70) {
-      this.stopEffect('heartbeat');
-    }
+    // Advanced heartbeat system with dynamic intensity
+    this.updateHeartbeatAudio(fearLevel, health);
 
-    // Heavy breathing when health is low
-    if (health < 30 && !this.effectSounds.get('breathing_heavy')?.playing()) {
-      this.playEffect('breathing_heavy', { volume: (30 - health) / 30 * 0.6, loop: true });
-    } else if (health >= 30) {
-      this.stopEffect('breathing_heavy');
-    }
+    // Breathing effects with smooth transitions
+    this.updateBreathingAudio(health, fearLevel);
 
-    // Change ambient based on time and location
-    this.updateAmbientForContext(currentTime, location);
+    // Dynamic ambient switching with crossfading
+    this.updateAmbientForContext(currentTime, location, fearLevel);
+
+    // Additional atmospheric effects based on combined state
+    this.updateAtmosphericEffects(fearLevel, health, currentTime);
   }
 
   /**
-   * Update ambient sound based on time and location context
+   * Calculate optimal fear multiplier for horror atmosphere
+   * @param {number} fearLevel - Current fear level (0-100)
+   * @returns {number} - Optimized multiplier
+   */
+  calculateOptimalFearMultiplier(fearLevel) {
+    // Non-linear curve for more dramatic audio changes
+    const normalizedFear = fearLevel / 100;
+    const curve = Math.pow(normalizedFear, 1.5); // Exponential curve
+    return 0.4 + (curve * 0.8); // Range: 0.4 to 1.2
+  }
+
+  /**
+   * Update heartbeat audio with dynamic intensity and layering
+   * @param {number} fearLevel - Current fear level
+   * @param {number} health - Current health level
+   */
+  updateHeartbeatAudio(fearLevel, health) {
+    const heartbeatSound = this.effectSounds.get('heartbeat');
+    const shouldPlayHeartbeat = fearLevel > 60 || health < 40;
+    
+    if (shouldPlayHeartbeat && heartbeatSound && !heartbeatSound.playing()) {
+      // Calculate intensity based on both fear and health
+      const fearIntensity = Math.max(0, (fearLevel - 60) / 40);
+      const healthIntensity = Math.max(0, (40 - health) / 40);
+      const combinedIntensity = Math.min(1, fearIntensity + healthIntensity * 0.5);
+      
+      const volume = 0.3 + (combinedIntensity * 0.5);
+      const rate = 0.8 + (combinedIntensity * 0.4); // Faster when more intense
+      
+      this.playEffect('heartbeat', { 
+        volume, 
+        rate, 
+        loop: true 
+      });
+    } else if (!shouldPlayHeartbeat && heartbeatSound?.playing()) {
+      // Fade out heartbeat smoothly
+      this.fadeOutEffect('heartbeat', 1000);
+    } else if (heartbeatSound?.playing()) {
+      // Adjust existing heartbeat intensity
+      const fearIntensity = Math.max(0, (fearLevel - 60) / 40);
+      const healthIntensity = Math.max(0, (40 - health) / 40);
+      const combinedIntensity = Math.min(1, fearIntensity + healthIntensity * 0.5);
+      
+      const volume = (0.3 + (combinedIntensity * 0.5)) * this.volumes.effects * this.volumes.master;
+      heartbeatSound.volume(volume);
+    }
+  }
+
+  /**
+   * Update breathing audio with smooth transitions
+   * @param {number} health - Current health level
+   * @param {number} fearLevel - Current fear level
+   */
+  updateBreathingAudio(health, fearLevel) {
+    const breathingSound = this.effectSounds.get('breathing_heavy');
+    const shouldPlayBreathing = health < 35 || fearLevel > 80;
+    
+    if (shouldPlayBreathing && breathingSound && !breathingSound.playing()) {
+      const healthIntensity = Math.max(0, (35 - health) / 35);
+      const fearIntensity = Math.max(0, (fearLevel - 80) / 20);
+      const combinedIntensity = Math.min(1, healthIntensity + fearIntensity * 0.3);
+      
+      const volume = 0.2 + (combinedIntensity * 0.4);
+      
+      this.playEffect('breathing_heavy', { 
+        volume, 
+        loop: true 
+      });
+    } else if (!shouldPlayBreathing && breathingSound?.playing()) {
+      this.fadeOutEffect('breathing_heavy', 1500);
+    }
+  }
+
+  /**
+   * Update atmospheric effects based on combined game state
+   * @param {number} fearLevel - Current fear level
+   * @param {number} health - Current health level
+   * @param {string} currentTime - Current game time
+   */
+  updateAtmosphericEffects(fearLevel, health, currentTime) {
+    const hour = parseInt(currentTime.split(':')[0]);
+    
+    // Critical state audio effects
+    if (fearLevel > 90 && health < 20) {
+      // Play distorted whispers at critical state
+      if (Math.random() < 0.1) { // 10% chance per update
+        this.playEffect('whisper', { 
+          volume: 0.3, 
+          rate: 0.7 // Slower, more menacing
+        });
+      }
+    }
+    
+    // Time-based atmospheric enhancements
+    if (hour === 3 && fearLevel > 50) {
+      // Witching hour intensification
+      this.adjustVolume('ambient', Math.min(1.0, this.volumes.ambient * 1.3));
+    }
+    
+    // Dawn approach relief
+    if (hour >= 5) {
+      const dawnRelief = (hour - 5) * 0.2; // Gradual relief
+      this.adjustVolume('ambient', Math.max(0.3, this.volumes.ambient * (1 - dawnRelief)));
+    }
+  }
+
+  /**
+   * Fade out effect sound smoothly
+   * @param {string} soundKey - Effect sound key
+   * @param {number} duration - Fade duration in ms
+   */
+  fadeOutEffect(soundKey, duration = 1000) {
+    const sound = this.effectSounds.get(soundKey);
+    if (!sound || !sound.playing()) return;
+    
+    const currentVolume = sound.volume();
+    sound.fade(currentVolume, 0, duration);
+    
+    setTimeout(() => {
+      sound.stop();
+    }, duration);
+  }
+
+  /**
+   * Update ambient sound based on time, location, and fear level with smooth crossfading
    * @param {string} currentTime - Current game time
    * @param {string} location - Current location
+   * @param {number} fearLevel - Current fear level for dynamic selection
    */
-  updateAmbientForContext(currentTime, location) {
-    let targetAmbient = 'forest_night'; // default
+  updateAmbientForContext(currentTime, location, fearLevel = 0) {
+    let targetAmbient = this.selectOptimalAmbient(currentTime, location, fearLevel);
 
-    // Time-based ambient changes
-    const hour = parseInt(currentTime.split(':')[0]);
-    if (hour >= 2 && hour < 4) {
-      targetAmbient = 'wind_howling';
-    } else if (hour >= 4 && hour < 6) {
-      targetAmbient = 'forest_night';
-    }
-
-    // Location-based overrides
-    if (location === 'basement') {
-      targetAmbient = 'basement_drip';
-    } else if (location === 'house' || location === 'indoors') {
-      targetAmbient = 'house_creaks';
-    }
-
-    // Switch ambient if different
+    // Smooth crossfading between ambient sounds
     if (this.currentAmbient !== targetAmbient) {
-      this.playAmbient(targetAmbient, { fadeIn: 2000 });
+      this.crossfadeAmbient(targetAmbient, {
+        fadeOutDuration: 1500,
+        fadeInDuration: 2000,
+        overlap: 500 // Overlap period for smoother transition
+      });
+    }
+  }
+
+  /**
+   * Select optimal ambient sound based on multiple factors
+   * @param {string} currentTime - Current game time
+   * @param {string} location - Current location
+   * @param {number} fearLevel - Current fear level
+   * @returns {string} - Selected ambient sound key
+   */
+  selectOptimalAmbient(currentTime, location, fearLevel) {
+    const hour = parseInt(currentTime.split(':')[0]);
+    
+    // Location-based primary selection
+    let baseAmbient = 'forest_night';
+    if (location === 'basement') {
+      baseAmbient = 'basement_drip';
+    } else if (location === 'house' || location === 'indoors') {
+      baseAmbient = 'house_creaks';
+    }
+    
+    // Time-based modifications
+    if (hour >= 2 && hour < 4) {
+      // Witching hours - more intense ambient
+      if (fearLevel > 60) {
+        baseAmbient = 'wind_howling';
+      }
+    } else if (hour >= 4 && hour < 6) {
+      // Pre-dawn - slightly calmer
+      if (location === 'outdoors' || !location) {
+        baseAmbient = 'forest_night';
+      }
+    }
+    
+    // Fear-based overrides
+    if (fearLevel > 80 && baseAmbient === 'forest_night') {
+      baseAmbient = 'wind_howling'; // More intense for high fear
+    }
+    
+    return baseAmbient;
+  }
+
+  /**
+   * Crossfade between ambient sounds for smooth transitions
+   * @param {string} newAmbient - Target ambient sound
+   * @param {Object} options - Crossfade options
+   */
+  crossfadeAmbient(newAmbient, options = {}) {
+    const {
+      fadeOutDuration = 1500,
+      fadeInDuration = 2000,
+      overlap = 500
+    } = options;
+
+    const oldAmbient = this.currentAmbient;
+    const oldSound = oldAmbient ? this.ambientSounds.get(oldAmbient) : null;
+    const newSound = this.ambientSounds.get(newAmbient);
+
+    if (!newSound) {
+      console.warn(`Ambient sound not found: ${newAmbient}`);
+      return;
+    }
+
+    // Start new ambient at low volume
+    const targetVolume = (this.audioAssets.ambient[newAmbient]?.volume || 0.3) 
+                        * this.volumes.ambient * this.volumes.master;
+    
+    newSound.volume(0);
+    const newSoundId = newSound.play();
+    
+    // Fade in new ambient
+    newSound.fade(0, targetVolume, fadeInDuration, newSoundId);
+    this.currentAmbient = newAmbient;
+
+    // Fade out old ambient with overlap
+    if (oldSound && oldSound.playing()) {
+      const fadeOutDelay = Math.max(0, overlap);
+      setTimeout(() => {
+        const currentOldVolume = oldSound.volume();
+        oldSound.fade(currentOldVolume, 0, fadeOutDuration);
+        
+        setTimeout(() => {
+          oldSound.stop();
+        }, fadeOutDuration);
+      }, fadeOutDelay);
     }
   }
 
