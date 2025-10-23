@@ -5,6 +5,7 @@ import { GameProvider, useGame } from "./context/GameContext";
 import VoiceController from "./components/VoiceController";
 import GameDemo from "./components/GameDemo";
 import Timer from "./components/Timer";
+import DemoStats from "./components/DemoStats";
 import { initializeAudio, playAmbient, playWhisper, updateAudioForGameState } from "./utils/soundManager";
 
 // Game component that uses the game context
@@ -21,6 +22,7 @@ function Game() {
   } = useGame();
   
   const [messages, setMessages] = useState(["Survive until sunrise."]);
+  const [showDemoStats, setShowDemoStats] = useState(process.env.NODE_ENV === 'development');
 
   useEffect(() => {
     if (isEngineReady) {
@@ -166,6 +168,32 @@ function Game() {
           )}
         </div>
       </div>
+      
+      {/* Demo Statistics for Hackathon */}
+      <DemoStats visible={showDemoStats} position="bottom-right" />
+      
+      {/* Demo Toggle (Development only) */}
+      {process.env.NODE_ENV === 'development' && (
+        <button
+          onClick={() => setShowDemoStats(!showDemoStats)}
+          style={{
+            position: 'fixed',
+            top: '10px',
+            right: '10px',
+            padding: '8px 12px',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            border: '1px solid #00ff00',
+            color: '#00ff00',
+            borderRadius: '4px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            fontFamily: "'Courier New', monospace",
+            zIndex: 2001
+          }}
+        >
+          {showDemoStats ? 'Hide Stats' : 'Show Stats'}
+        </button>
+      )}
     </div>
   );
 }

@@ -1,15 +1,26 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import HackathonShowcase from "./components/HackathonShowcase";
 
 export default function HomePage() {
   const router = useRouter();
+  const [showShowcase] = useState(true);
 
+  // Check if we should show the hackathon showcase or go directly to game
   useEffect(() => {
-    // Automatically redirect to the game
-    router.push("/game");
+    const urlParams = new URLSearchParams(window.location.search);
+    const directToGame = urlParams.get('direct') === 'true';
+    
+    if (directToGame) {
+      router.push("/game");
+    }
   }, [router]);
+
+  if (showShowcase) {
+    return <HackathonShowcase />;
+  }
 
   return (
     <div className="w-screen h-screen bg-black text-green-300 flex items-center justify-center">

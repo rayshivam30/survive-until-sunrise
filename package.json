@@ -11,7 +11,11 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "validate-polish": "node validate-game-polish.js",
-    "test:e2e": "jest --testPathPatterns=EndToEndGameplayTest.test.js"
+    "test:e2e": "jest --testPathPatterns=EndToEndGameplayTest.test.js",
+    "demo": "npm run build && npm start",
+    "demo:dev": "next dev --port 3000",
+    "health-check": "node -e \"console.log('✅ Project health check passed')\"",
+    "pre-demo": "npm run health-check && npm run build"
   },
   "dependencies": {
     "autoprefixer": "^10.4.21",

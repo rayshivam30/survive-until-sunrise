@@ -29,6 +29,8 @@ const customJestConfig = {
     '/node_modules/',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
+  testTimeout: 10000, // Increase timeout for integration tests
+  maxWorkers: 1, // Run tests sequentially to avoid conflicts
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

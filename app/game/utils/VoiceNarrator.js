@@ -355,7 +355,7 @@ export class VoiceNarrator {
     };
 
     this.currentUtterance.onerror = (event) => {
-      console.error('Narration error:', event);
+      console.error('Narration error:', event?.error || 'Unknown speech synthesis error');
       this.isNarrating = false;
       this.currentUtterance = null;
       
