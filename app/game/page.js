@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { GameProvider, useGame } from "./context/GameContext";
 import VoiceController from "./components/VoiceController";
 import GameDemo from "./components/GameDemo";
+import GameWorld from "./components/GameWorld";
 import Timer from "./components/Timer";
 import DemoStats from "./components/DemoStats";
 import { initializeAudio, playAmbient, playWhisper, updateAudioForGameState } from "./utils/soundManager";
@@ -21,8 +22,91 @@ function Game() {
     gameProgress 
   } = useGame();
   
-  const [messages, setMessages] = useState(["Survive until sunrise."]);
+  const [messages, setMessages] = useState([
+    "🌙 Welcome to Survive Until Sunrise",
+    "You find yourself in a dark room. You need to survive until 6:00 AM.",
+    "💡 Try using the demo panel on the left to add a flashlight, then use it!"
+  ]);
   const [showDemoStats, setShowDemoStats] = useState(process.env.NODE_ENV === 'development');
+
+  // Get background color based on active items and game state
+  const getBackgroundColor = () => {
+    if (!gameState) return '#000000';
+    
+    // Check for active light sources
+    const hasActiveFlashlight = gameState.inventory?.some(item => 
+      item.id === 'flashlight' && item.isActive && item.durability > 0
+    );
+    const hasActiveCandle = gameState.inventory?.some(item => 
+      item.id === 'candle' && item.isActive && item.durability > 0
+    );
+    const hasActivePhone = gameState.inventory?.some(item => 
+      item.id === 'phone' && item.isActive && item.durability > 0
+    );
+
+    // Light sources provide significant illumination
+    if (hasActiveFlashlight) {
+      return '#1a1a2e'; // Much brighter blue tint for flashlight
+    } else if (hasActiveCandle) {
+      return '#2e1a0a'; // Warm orange tint for candle
+    } else if (hasActivePhone) {
+      return '#1a1a1a'; // Gray tint for phone
+    }
+    
+    // Fear level affects visibility
+    if (gameState.fearLevel > 80) {
+      return '#0a0005'; // Very dark when scared
+    }
+    
+    return '#000000'; // Complete darkness
+  };
+
+  // Get CSS class for game area based on active items
+  const getGameAreaClass = () => {
+    if (!gameState) return '';
+    
+    const hasActiveFlashlight = gameState.inventory?.some(item => 
+      item.id === 'flashlight' && item.isActive && item.durability > 0
+    );
+    const hasActiveCandle = gameState.inventory?.some(item => 
+      item.id === 'candle' && item.isActive && item.durability > 0
+    );
+    
+    if (hasActiveFlashlight) return 'flashlight-active';
+    if (hasActiveCandle) return 'candle-active';
+    return '';
+  };
+
+  // Get environment description based on game state
+  const getEnvironmentDescription = () => {
+    if (!gameState) return "You are in complete darkness...";
+    
+    const hasActiveFlashlight = gameState.inventory?.some(item => 
+      item.id === 'flashlight' && item.isActive && item.durability > 0
+    );
+    const hasActiveCandle = gameState.inventory?.some(item => 
+      item.id === 'candle' && item.isActive && item.durability > 0
+    );
+    const hasActivePhone = gameState.inventory?.some(item => 
+      item.id === 'phone' && item.isActive && item.durability > 0
+    );
+
+    if (hasActiveFlashlight) {
+      return `🔦 Your flashlight beam cuts through the darkness, revealing a small room with old furniture. Shadows dance at the edges of the light. You can see a door to the north and a window to the east. The floorboards creak under your feet.`;
+    } else if (hasActiveCandle) {
+      return `🕯️ The candle's warm glow illuminates your immediate surroundings. You can make out the outline of furniture and walls, but the corners remain shrouded in darkness. The flame flickers occasionally, casting moving shadows.`;
+    } else if (hasActivePhone) {
+      return `📱 Your phone's dim screen provides minimal light. You can barely make out shapes in the darkness. The battery indicator shows it won't last much longer.`;
+    } else {
+      if (gameState.fearLevel > 70) {
+        return `🌑 Complete darkness surrounds you. Every sound makes you jump. You feel like something is watching you from the shadows. Your heart pounds in your chest.`;
+      } else if (gameState.fearLevel > 40) {
+        return `🌑 You are in total darkness. You can hear your own breathing and the occasional creak of the building. Something doesn't feel right.`;
+      } else {
+        return `🌑 You stand in darkness. It's quiet, but you remain alert. You need to find a light source or navigate carefully.`;
+      }
+    }
+  };
 
   useEffect(() => {
     if (isEngineReady) {
@@ -40,24 +124,30 @@ function Game() {
   }, [gameState, isEngineReady]);
 
   const onCommand = (command) => {
+    if (!command || typeof command !== 'string') return;
+    
     // Handle command through game engine
     const handled = handleCommand(command);
     
     // Add message to display
-    setMessages(prev => [...prev, `You said: "${command}"`]);
+    setMessages(prev => [...prev, `> ${command}`]);
 
     if (handled) {
-      setMessages(prev => [...prev, "Command processed..."]);
+      setMessages(prev => [...prev, "✓ Command executed"]);
     } else {
-      setMessages(prev => [...prev, "I don't understand that command."]);
+      setMessages(prev => [...prev, "? I don't understand that command. Try: 'hide', 'run', 'use flashlight', 'search'"]);
     }
 
-    // Example: AI response intensity based on fear level
-    if (gameState && gameState.fearLevel > 50) {
-      setMessages(prev => [...prev, "The monster senses your fear! It gets closer."]);
-      playWhisper();
-    } else if (gameState) {
-      setMessages(prev => [...prev, "You stay calm... for now."]);
+    // Dynamic response based on game state
+    if (gameState) {
+      if (gameState.fearLevel > 70) {
+        setMessages(prev => [...prev, "⚠ Your heart pounds as terror grips you!"]);
+        if (playWhisper) playWhisper();
+      } else if (gameState.fearLevel > 40) {
+        setMessages(prev => [...prev, "⚡ You feel uneasy but maintain composure."]);
+      } else {
+        setMessages(prev => [...prev, "✨ You remain calm and focused."]);
+      }
     }
   };
 
@@ -105,68 +195,96 @@ function Game() {
   return (
     <div className="w-screen h-screen bg-black text-green-300 flex">
       {/* Game Demo Panel */}
-      <div className="w-1/3 overflow-y-auto">
+      <div className="w-1/4 overflow-y-auto border-r border-green-500">
         <GameDemo />
       </div>
       
-      {/* Main Game Area */}
-      <div className="w-2/3 p-4 relative">
-        {/* Game HUD */}
-        {gameState && (
-          <div className="game-hud fixed top-4 right-4 text-right">
-            {/* Timer Component */}
-            <Timer className="mb-4" />
-            
-            {/* Other HUD Elements */}
-            <div className="hud-stats p-4 rounded bg-black bg-opacity-70 border border-green-300 border-opacity-30">
-              <div className={`text-sm mb-2 ${
-                gameState.fearLevel < 25 ? 'fear-low' : 
-                gameState.fearLevel < 50 ? 'fear-medium' : 
-                gameState.fearLevel < 75 ? 'fear-high' : 'fear-critical pulse'
-              }`}>
-                Fear: {Math.round(gameState.fearLevel)}%
+      {/* Main Game World */}
+      <div className="w-3/4 overflow-y-auto">
+        <div className="flex">
+          {/* Game HUD - Top */}
+          <div className="w-full p-4 border-b border-green-500">
+            <div className="flex justify-between items-center">
+              <div className="flex gap-6">
+                {gameState && (
+                  <>
+                    <div className={`font-mono text-sm ${
+                      gameState.fearLevel < 25 ? 'text-green-400' : 
+                      gameState.fearLevel < 50 ? 'text-yellow-400' : 
+                      gameState.fearLevel < 75 ? 'text-orange-400' : 'text-red-400 animate-pulse'
+                    }`}>
+                      😰 Fear: {Math.round(gameState.fearLevel)}%
+                    </div>
+                    <div className={`font-mono text-sm ${
+                      gameState.health > 75 ? 'text-green-400' : 
+                      gameState.health > 50 ? 'text-yellow-400' : 
+                      gameState.health > 25 ? 'text-orange-400' : 'text-red-400 animate-pulse'
+                    }`}>
+                      ❤️ Health: {Math.round(gameState.health)}%
+                    </div>
+                    
+                    {/* Active Items */}
+                    {gameState.inventory && gameState.inventory.filter(item => item.isActive).length > 0 && (
+                      <div className="flex gap-2">
+                        {gameState.inventory.filter(item => item.isActive).map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-yellow-900 bg-opacity-30 rounded border border-yellow-400 border-opacity-50">
+                            <span>{item.icon || '🔧'}</span>
+                            <span className="text-xs text-yellow-300">{item.name}</span>
+                            {item.durability !== undefined && (
+                              <span className={`text-xs ${
+                                item.durability > 50 ? 'text-green-400' : 
+                                item.durability > 20 ? 'text-yellow-400' : 'text-red-400'
+                              }`}>
+                                {Math.round(item.durability)}%
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-              <div className={`text-sm mb-2 ${
-                gameState.health > 75 ? 'health-full' : 
-                gameState.health > 50 ? 'health-good' : 
-                gameState.health > 25 ? 'health-medium' : 
-                gameState.health > 10 ? 'health-low' : 'health-critical pulse'
-              }`}>
-                Health: {Math.round(gameState.health)}%
-              </div>
-              {gameState.inventory && gameState.inventory.length > 0 && (
-                <div className="text-sm opacity-75">
-                  Items: {gameState.inventory.length}
-                </div>
-              )}
+              <Timer />
             </div>
           </div>
-        )}
-
-        {/* Voice Controller */}
-        <VoiceController onCommand={onCommand} />
-        
-        {/* Game Messages */}
-        <div className="message-log h-full flex flex-col justify-end overflow-y-auto pt-20">
-          {messages.map((msg, idx) => (
-            <p key={idx} className={`mb-1 ${idx === messages.length - 1 ? 'terminal-text' : ''}`}>
-              {msg}
-            </p>
-          ))}
-          
-          {/* Game Status */}
-          {gameState && !isGameRunning && gameState.isAlive === false && (
-            <div className="text-red-400 text-xl mt-4 glitch">
-              Game Over - You did not survive the night.
-            </div>
-          )}
-          
-          {gameState && gameState.currentTime === "06:00" && gameState.isAlive && (
-            <div className="text-yellow-400 text-xl mt-4 terminal-text">
-              Victory! You survived until sunrise!
-            </div>
-          )}
         </div>
+
+        {/* Game World Component */}
+        <GameWorld />
+
+        {/* Game Messages */}
+        <div className="p-4 border-t border-green-500 max-h-48 overflow-y-auto">
+          <div className="space-y-2">
+            {messages.slice(-5).map((msg, idx) => (
+              <div key={idx} className={`p-2 rounded font-mono text-sm ${
+                idx === messages.length - 1 ? 
+                'bg-green-900 bg-opacity-30 border border-green-400 text-green-300' : 
+                'bg-gray-900 bg-opacity-50 text-gray-300'
+              }`}>
+                {msg}
+              </div>
+            ))}
+            
+            {/* Game Status Messages */}
+            {gameState && !isGameRunning && gameState.isAlive === false && (
+              <div className="p-3 bg-red-900 bg-opacity-50 border border-red-400 rounded text-center">
+                <div className="text-red-400 text-lg font-bold">💀 GAME OVER 💀</div>
+                <div className="text-red-300 text-sm">You did not survive the night.</div>
+              </div>
+            )}
+            
+            {gameState && gameState.currentTime === "06:00" && gameState.isAlive && (
+              <div className="p-3 bg-yellow-900 bg-opacity-50 border border-yellow-400 rounded text-center">
+                <div className="text-yellow-400 text-lg font-bold">🌅 VICTORY! 🌅</div>
+                <div className="text-yellow-300 text-sm">You survived until sunrise!</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Voice Controller (hidden) */}
+        <VoiceController onCommand={onCommand} />
       </div>
       
       {/* Demo Statistics for Hackathon */}

@@ -57,6 +57,9 @@ export class GameEngine {
     // Set up game loop callbacks
     this.setupGameLoopCallbacks();
     
+    // Set up basic command handlers
+    this.setupBasicCommandHandlers();
+    
     // Bind methods to preserve context
     this.update = this.update.bind(this);
     this.handleCommand = this.handleCommand.bind(this);
@@ -923,6 +926,88 @@ export class GameEngine {
    */
   enableAdaptiveOptimization() {
     this.performanceOptimizer.enableAdaptiveOptimization();
+  }
+
+  /**
+   * Set up basic command handlers for common game actions
+   */
+  setupBasicCommandHandlers() {
+    // Hide command
+    this.registerCommandHandler('hide', (command, gameState) => {
+      if (gameState.fearLevel > 80) {
+        gameState.updateFear(-15);
+        gameState.updateHealth(2);
+        return true;
+      } else {
+        gameState.updateFear(-5);
+        return true;
+      }
+    });
+
+    // Run command
+    this.registerCommandHandler('run', (command, gameState) => {
+      if (gameState.health > 30) {
+        gameState.updateFear(-10);
+        gameState.updateHealth(-5);
+        return true;
+      } else {
+        gameState.updateFear(5);
+        return true;
+      }
+    });
+
+    // Listen command
+    this.registerCommandHandler('listen', (command, gameState) => {
+      gameState.updateFear(Math.random() > 0.5 ? -3 : 8);
+      return true;
+    });
+
+    // Look/search command
+    this.registerCommandHandler('look', (command, gameState) => {
+      gameState.updateFear(2);
+      return true;
+    });
+
+    this.registerCommandHandler('search', (command, gameState) => {
+      gameState.updateFear(3);
+      return true;
+    });
+
+    // Wait command
+    this.registerCommandHandler('wait', (command, gameState) => {
+      gameState.updateFear(5);
+      return true;
+    });
+
+    // Monster encounter commands
+    this.registerCommandHandler('caught', (command, gameState) => {
+      gameState.updateHealth(-50);
+      gameState.updateFear(30);
+      if (gameState.health <= 0) {
+        gameState.isAlive = false;
+      }
+      return true;
+    });
+
+    // Hiding commands
+    this.registerCommandHandler('stop hiding', (command, gameState) => {
+      gameState.updateFear(5);
+      return true;
+    });
+
+    // Item pickup commands
+    this.registerCommandHandler('pick up', (command, gameState) => {
+      gameState.updateFear(-2);
+      return true;
+    });
+
+    // Monster proximity command
+    this.registerCommandHandler('monster nearby', (command, gameState) => {
+      gameState.updateFear(8);
+      return true;
+    });
+
+    console.log('Basic command handlers registered');
   }
 
   /**
