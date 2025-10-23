@@ -10,3 +10,5 @@ export { HealthSystem } from './HealthSystem.js';
 export { InventorySystem } from './InventorySystem.js';
 export { EndingSystem } from './EndingSystem.js';
 export { default as EventSystem } from './EventSystem.js';
+export { GameInitializer } from './GameInitializer.js';
+export { GameLoop } from './GameLoop.js';

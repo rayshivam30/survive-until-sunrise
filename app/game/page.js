@@ -12,6 +12,8 @@ function Game() {
   const { 
     gameState, 
     isEngineReady, 
+    initializationProgress,
+    initializationError,
     startGame, 
     handleCommand, 
     isGameRunning,
@@ -22,12 +24,9 @@ function Game() {
 
   useEffect(() => {
     if (isEngineReady) {
-      // Initialize audio system first
-      initializeAudio().then(() => {
-        // Start the game when engine is ready
-        startGame();
-        playAmbient();
-      });
+      // Game systems are already initialized by GameInitializer
+      // Just start the game
+      startGame();
     }
   }, [isEngineReady, startGame]);
 
@@ -60,12 +59,42 @@ function Game() {
     }
   };
 
+  // Show initialization progress
   if (!isEngineReady) {
     return (
       <div className="w-screen h-screen bg-black text-green-300 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-4xl mb-4">Survive Until Sunrise</h1>
-          <p className="text-xl">Initializing game engine...</p>
+          
+          {initializationError ? (
+            <div className="text-red-400">
+              <p className="text-xl mb-2">Initialization Failed</p>
+              <p className="text-sm mb-2">Step: {initializationError.step}</p>
+              <p className="text-sm">{initializationError.error}</p>
+              <button 
+                className="mt-4 px-4 py-2 border border-red-400 text-red-400 hover:bg-red-400 hover:text-black"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </button>
+            </div>
+          ) : initializationProgress ? (
+            <div>
+              <p className="text-xl mb-2">Initializing game systems...</p>
+              <p className="text-sm mb-2">{initializationProgress.name}</p>
+              <div className="w-64 bg-gray-800 rounded-full h-2 mx-auto">
+                <div 
+                  className="bg-green-300 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${initializationProgress.progress}%` }}
+                ></div>
+              </div>
+              <p className="text-xs mt-2">
+                Step {initializationProgress.step} of {initializationProgress.total}
+              </p>
+            </div>
+          ) : (
+            <p className="text-xl">Starting initialization...</p>
+          )}
         </div>
       </div>
     );
