@@ -72,7 +72,6 @@ export default function HackathonShowcase() {
           </p>
           
           <div className="hero-badges">
-            <span className="badge">🏆 Hackathon 2024</span>
             <span className="badge">🎤 Voice-Only</span>
             <span className="badge">🎮 Horror Game</span>
           </div>

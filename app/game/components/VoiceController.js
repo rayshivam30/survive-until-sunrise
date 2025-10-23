@@ -115,8 +115,9 @@ export default function VoiceController({
         break;
         
       case 'not-allowed':
-        handleError(new Error('Microphone permission denied'), 'permission-denied');
+        console.log('Microphone permission denied - voice input disabled');
         setIsSupported(false);
+        // Don't treat this as an error, just disable voice features
         break;
         
       case 'network':

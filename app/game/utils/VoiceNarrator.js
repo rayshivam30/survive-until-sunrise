@@ -262,7 +262,10 @@ export class VoiceNarrator {
    */
   narrate(text, options = {}) {
     if (!this.isSupported) {
-      console.warn('Speech synthesis not supported');
+      // Fallback to console logging for development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🎙️ Narration (voice disabled):', text);
+      }
       return false;
     }
 
@@ -355,7 +358,17 @@ export class VoiceNarrator {
     };
 
     this.currentUtterance.onerror = (event) => {
-      console.error('Narration error:', event?.error || 'Unknown speech synthesis error');
+      const errorType = event?.error || 'unknown';
+      console.warn('Narration error:', errorType);
+      
+      // Handle permission errors gracefully
+      if (errorType === 'not-allowed' || errorType === 'permission-denied') {
+        console.log('Voice narration permission denied - disabling voice features');
+        this.isSupported = false; // Disable voice features
+        this.clearQueue(); // Clear remaining queue
+        return;
+      }
+      
       this.isNarrating = false;
       this.currentUtterance = null;
       
@@ -363,8 +376,10 @@ export class VoiceNarrator {
         this.onNarrationError(event, narrationItem);
       }
 
-      // Continue with next item after error
-      setTimeout(() => this.processNarrationQueue(), 500);
+      // Continue with next item after error (unless permission denied)
+      if (errorType !== 'not-allowed' && errorType !== 'permission-denied') {
+        setTimeout(() => this.processNarrationQueue(), 500);
+      }
     };
 
     // Speak the utterance
