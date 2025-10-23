@@ -154,13 +154,6 @@ npm run validate-polish   # Game polish validation
 - **Responsive design** - Works on desktop and mobile
 - **Clear feedback** - Visual and audio cues guide players
 
-## 🏆 Awards Potential
-
-- **Best Use of Voice Technology**
-- **Most Innovative Game Mechanics**
-- **Technical Excellence**
-- **Best Audio Design**
-- **People's Choice Award**
 
 ## 📝 License
 
@@ -168,21 +161,11 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 ## 🤝 Contributing
 
-This project was built for a hackathon. Contributions welcome!
+ Contributions welcome!
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
 4. Add tests
 5. Submit a pull request
-
-## 📞 Contact
-
-- **Developer**: [Your Name]
-- **Email**: [your.email@example.com]
-- **Demo**: [Live Demo URL]
-- **Video**: [Demo Video URL]
-
----
-
-**Built with ❤️ for [Hackathon Name] 2024**
+--
